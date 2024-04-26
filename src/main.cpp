@@ -1,25 +1,13 @@
 // clang-format off
-// Order of includes is important, see the https://github.com/bxparks/AceTime/discussions/86
-// #include <AceTime.h>
-// #include <AceTimeClock.h>
 #include <Arduino.h>
 #include <ArduinoOTA.h>
-#include <NTPClient.h>
 #include <Syslog.h>
 #include <WiFi.h>
 #include <WiFiManager.h>
 #include <WiFiUdp.h>
-
-// using ace_time::acetime_t;
-// using ace_time::BasicZoneProcessor;
-// using ace_time::TimeZone;
-// using ace_time::ZonedDateTime;
-// // using ace_time::clock::NtpClock;
-// using ace_time::zonedb::kZoneEurope_Prague;
 // clang-format on
 
 #include "secrets.h"
-#include "timezone.h" // remove FIXME
 
 // then everything else can be included
 #include "debug.h"
@@ -32,19 +20,11 @@
 #define SECONDS_TO_MILLIS 1000
 #define MILLIS 1
 
+// https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
+#define TIMEZONE "CET-1CEST,M3.5.0,M10.5.0/3"  // Europe/Prague
+
 WiFiManager wifiManager;
 WiFiClient wifiClient;
-
-// By default 'pool.ntp.org' is used with 60 seconds update interval and
-// no offset
-WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP);
-// You can specify the time server pool and the offset, (in seconds)
-// additionally you can specify the update interval (in milliseconds).
-// NTPClient timeClient(ntpUDP, "europe.pool.ntp.org", 3600, 60000);
-
-static BasicZoneProcessor localZoneProcessor;
-// static NtpClock ntpClock;
 
 void wdtInit() {
 #ifdef USE_WDT
@@ -63,7 +43,7 @@ void wdtRefresh() {
 
 void wdtStop() {
 #ifdef USE_WDT
-  // TRACE_PRINT("Stopping WDT...");
+  TRACE_PRINT("Stopping WDT...");
   esp_task_wdt_deinit();
 #endif
 }
@@ -142,12 +122,7 @@ void setup() {
   });
   ArduinoOTA.onEnd([]() { DEBUG_PRINT("OTA End"); });
 
-  timeClient.begin();
-  // ntpClock.setup();
-  // if (!ntpClock.isSetup()) {
-  //   DEBUG_PRINT(F("Something went wrong with NTP clock."));
-  //   return;
-  // }
+  configTzTime(TIMEZONE, "pool.ntp.org");
 }
 
 void loop() {
@@ -155,12 +130,12 @@ void loop() {
   wdtRefresh();
   delay(5 * MILLIS);
 
-  timeClient.update();
-  Serial.println(timeClient.getFormattedTime());
-  // acetime_t nowSeconds = ntpClock.getNow();
-  // auto localTz = TimeZone::forZoneInfo(&kZoneEurope_Prague, &localZoneProcessor);
-  // auto localTime = ZonedDateTime::forEpochSeconds(nowSeconds, localTz);
-  // DEBUG_PRINT(F("Local Time: %s:%s:%s"), localTime.hour(), localTime.minute(), localTime.second());
+  tm rtcTime;
+  if (getLocalTime(&rtcTime)) {
+    DEBUG_PRINT("RTC time: %02d:%02d:%02d", rtcTime.tm_hour, rtcTime.tm_min, rtcTime.tm_sec);
+  } else {
+    Serial.println("RTC time not available");
+  };
 
-  delay(5000);
+  delay(1000);
 }

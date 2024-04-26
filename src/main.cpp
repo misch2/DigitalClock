@@ -5,6 +5,7 @@
 #include <WiFi.h>
 #include <WiFiManager.h>
 #include <WiFiUdp.h>
+#include "esp_sntp.h"
 // clang-format on
 
 #include "secrets.h"
@@ -26,6 +27,8 @@
 WiFiManager wifiManager;
 WiFiClient wifiClient;
 
+time_t lastTime;
+
 void wdtInit() {
 #ifdef USE_WDT
   DEBUG_PRINT("Configuring WDT for %d seconds", WDT_TIMEOUT);
@@ -43,7 +46,7 @@ void wdtRefresh() {
 
 void wdtStop() {
 #ifdef USE_WDT
-  TRACE_PRINT("Stopping WDT...");
+  DEBUG_PRINT("Stopping WDT...");
   esp_task_wdt_deinit();
 #endif
 }
@@ -102,6 +105,10 @@ void logResetReason() {
   };
 };
 
+void cbSyncTime(struct timeval *tv) {  // callback function to show when NTP was synchronized
+  DEBUG_PRINT(F("NTP time synchronized"));
+}
+
 void setup() {
   Serial.begin(115200); /* prepare for possible serial debug */
 
@@ -123,6 +130,8 @@ void setup() {
   ArduinoOTA.onEnd([]() { DEBUG_PRINT("OTA End"); });
 
   configTzTime(TIMEZONE, "pool.ntp.org");
+  sntp_set_time_sync_notification_cb(cbSyncTime);
+  lastTime = 0;
 }
 
 void loop() {
@@ -132,10 +141,12 @@ void loop() {
 
   tm rtcTime;
   if (getLocalTime(&rtcTime)) {
-    DEBUG_PRINT("RTC time: %02d:%02d:%02d", rtcTime.tm_hour, rtcTime.tm_min, rtcTime.tm_sec);
+    time_t curTime = mktime(&rtcTime);
+    if (lastTime != curTime) {
+      lastTime = curTime;
+      Serial.printf("RTC time: %02d:%02d:%02d\n", rtcTime.tm_hour, rtcTime.tm_min, rtcTime.tm_sec);
+    };
   } else {
     Serial.println("RTC time not available");
   };
-
-  delay(1000);
 }

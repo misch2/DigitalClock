@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <ArduinoOTA.h>
 #include <Syslog.h>
+#include <Timemark.h>
 #include <WiFi.h>
 #include <WiFiManager.h>
 #include <WiFiUdp.h>
@@ -24,6 +25,7 @@
 WiFiManager wifiManager;
 WiFiClient wifiClient;
 time_t lastTime;
+Timemark blinkingDotsIndicator(500 * MILLIS);
 
 void wdtInit() {
 #ifdef USE_WDT
@@ -133,6 +135,19 @@ void setup() {
   sntp_set_time_sync_notification_cb(cbSyncTime);
 }
 
+void showTime(tm rtcTime) {
+  Serial.printf("RTC time: %02d:%02d:%02d\n", rtcTime.tm_hour, rtcTime.tm_min, rtcTime.tm_sec);
+  //
+};
+
+void showDot(bool onOff) {
+  if (onOff) {
+    Serial.print(".");
+  } else {
+    Serial.print(":");
+  }
+}
+
 void loop() {
   ArduinoOTA.handle();
   wdtRefresh();
@@ -142,10 +157,17 @@ void loop() {
     time_t curTime = mktime(&rtcTime);
     if (lastTime != curTime) {
       lastTime = curTime;
-      Serial.printf("RTC time: %02d:%02d:%02d\n", rtcTime.tm_hour, rtcTime.tm_min, rtcTime.tm_sec);
+      showTime(rtcTime);
+      showDot(true);
+      blinkingDotsIndicator.start();  // reset
     };
   } else {
     Serial.println("RTC time not available");
+    blinkingDotsIndicator.stop();
+  };
+
+  if (blinkingDotsIndicator.expired()) {
+    showDot(false);
   };
 
   delay(5 * MILLIS);

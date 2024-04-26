@@ -6,12 +6,12 @@
 #include <WiFiManager.h>
 #include <WiFiUdp.h>
 #include "esp_sntp.h"
-// clang-format on
 
 #include "secrets.h"
+#include "debug.h"
+// clang-format on
 
 // then everything else can be included
-#include "debug.h"
 #include "main.h"
 
 #ifdef USE_WDT
@@ -21,12 +21,8 @@
 #define SECONDS_TO_MILLIS 1000
 #define MILLIS 1
 
-// https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
-#define TIMEZONE "CET-1CEST,M3.5.0,M10.5.0/3"  // Europe/Prague
-
 WiFiManager wifiManager;
 WiFiClient wifiClient;
-
 time_t lastTime;
 
 void wdtInit() {
@@ -106,7 +102,7 @@ void logResetReason() {
 };
 
 void cbSyncTime(struct timeval *tv) {  // callback function to show when NTP was synchronized
-  DEBUG_PRINT(F("NTP time synchronized"));
+  DEBUG_PRINT("NTP time synchronized to %s", NTP_SERVER);
 }
 
 void setup() {
@@ -129,15 +125,17 @@ void setup() {
   });
   ArduinoOTA.onEnd([]() { DEBUG_PRINT("OTA End"); });
 
-  configTzTime(TIMEZONE, "pool.ntp.org");
-  sntp_set_time_sync_notification_cb(cbSyncTime);
   lastTime = 0;
+  DEBUG_PRINT("Timezone: %s", TIMEZONE);
+  DEBUG_PRINT("NTP server: %s", NTP_SERVER);
+  DEBUG_PRINT("Starting NTP sync...");
+  configTzTime(TIMEZONE, NTP_SERVER);
+  sntp_set_time_sync_notification_cb(cbSyncTime);
 }
 
 void loop() {
   ArduinoOTA.handle();
   wdtRefresh();
-  delay(5 * MILLIS);
 
   tm rtcTime;
   if (getLocalTime(&rtcTime)) {
@@ -149,4 +147,6 @@ void loop() {
   } else {
     Serial.println("RTC time not available");
   };
+
+  delay(5 * MILLIS);
 }

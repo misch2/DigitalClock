@@ -1,38 +1,43 @@
-// clang-format off
+// external libraries first
 #include <Arduino.h>
 #include <ArduinoOTA.h>
-#include <LedControl.h>
+#include <MD_MAX72xx.h>
 #include <Syslog.h>
 #include <Timemark.h>
 #include <WiFi.h>
 #include <WiFiManager.h>
-#include <WiFiUdp.h>
-#include "esp_sntp.h"
+#include <esp_sntp.h>
+#include <esp_task_wdt.h>
 
+// then everything else
+
+// clang-format off
 #include "secrets.h"
 #include "debug.h"
+#include "main.h"
 // clang-format on
 
-// then everything else can be included
-#include "main.h"
-
-#ifdef USE_WDT
-#include <esp_task_wdt.h>
-#endif
+// hardware configuration
+#define HARDWARE_TYPE MD_MAX72XX::DR0CR0RR0_HW
+#define MAX_DEVICES 2  // FIXME tmp, should be 2
+#define DATA_PIN 9
+#define CS_PIN 10
+#define CLK_PIN 11
 
 #define SECONDS_TO_MILLIS 1000
 #define MILLIS 1
-
-#define DIN 9
-#define CS 10
-#define CLK 11
-#define NUM_DEVICES 2
-LedControl max7219 = LedControl(DIN, CLK, CS, NUM_DEVICES);
 
 WiFiManager wifiManager;
 WiFiClient wifiClient;
 time_t lastTime;
 Timemark blinkingDotsIndicator(500 * MILLIS);
+
+// SPI hardware interface
+// MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);
+// Specific SPI hardware interface
+// MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, SPI1, CS_PIN, MAX_DEVICES);
+// Arbitrary pins (bit banged SPI)
+MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, DATA_PIN, CLK_PIN, CS_PIN, MAX_DEVICES);
 
 void wdtInit() {
 #ifdef USE_WDT
@@ -114,37 +119,56 @@ void cbSyncTime(struct timeval *tv) {  // callback function to show when NTP was
   DEBUG_PRINT("NTP time synchronized to %s", NTP_SERVER);
 }
 
-void setup() {
-  Serial.begin(115200); /* prepare for possible serial debug */
+void test_blinking()
+// Uses the test function of the MAX72xx to blink the display on and off.
+{
+  int nDelay = 300;
 
-  wdtStop();
-  wifiManager.setHostname(HOSTNAME);
-  wifiManager.setConnectRetries(3);
-  wifiManager.setConnectTimeout(15);            // 15 seconds
-  wifiManager.setConfigPortalTimeout(10 * 60);  // Stay 10 minutes max in the AP web portal, then reboot
-  wifiManager.autoConnect();
-  logResetReason();
-  wdtInit();
+  Serial.println("\nBlinking");
 
-  ArduinoOTA.setHostname(HOSTNAME);
-  ArduinoOTA.begin();
-  ArduinoOTA.onStart([]() {
-    DEBUG_PRINT("OTA Start");
-    wdtStop();
-  });
-  ArduinoOTA.onEnd([]() { DEBUG_PRINT("OTA End"); });
+  while (nDelay > 0) {
+    Serial.printf("Blinking delay: %d\n", nDelay);
+    mx.control(MD_MAX72XX::TEST, MD_MAX72XX::ON);
+    delay(nDelay);
+    mx.control(MD_MAX72XX::TEST, MD_MAX72XX::OFF);
+    delay(nDelay);
 
-  max7219.shutdown(0, false);  // turn off energy saving mode
-  max7219.setIntensity(0, 8);  // set brightness level to a middle value
-  max7219.clearDisplay(0);     // clear display register
+    nDelay -= 30;
+    wdtRefresh();
+  }
+  Serial.println("Stopped blinking");
+};
 
-  lastTime = 0;
-  DEBUG_PRINT("Timezone: %s", TIMEZONE);
-  DEBUG_PRINT("NTP server: %s", NTP_SERVER);
-  DEBUG_PRINT("Starting NTP sync...");
-  configTzTime(TIMEZONE, NTP_SERVER);
-  sntp_set_time_sync_notification_cb(cbSyncTime);
-}
+void test_on_off() {
+  for (int i = 0; i < 100; i++) {
+    Serial.println("ON");
+    for (int col = 0; col < COL_SIZE; col++) {
+      mx.setColumn(0, col, 0b11111111);
+    }
+    delay(500);
+    Serial.println("OFF");
+    for (int col = 0; col < COL_SIZE; col++) {
+      mx.setColumn(0, col, 0b00000000);
+    }
+    delay(500);
+  }
+};
+
+void test_simple_on() {
+  while (1) {
+    mx.setColumn(0, 0, 0b11111111);
+    mx.setColumn(0, 1, 0b11111111);
+    mx.setColumn(0, 2, 0b11111111);
+    mx.setColumn(0, 3, 0b11111111);
+    mx.setColumn(0, 4, 0b11111111);
+    mx.setColumn(0, 5, 0b11111111);
+    mx.setColumn(0, 6, 0b11111111);
+    mx.setColumn(0, 7, 0b11111111);
+    delay(100000);
+    // mx.setColumn(0, 0, 0x00);
+    // delay(1000);
+  };
+};
 
 /*
 
@@ -180,6 +204,34 @@ uint8_t map_virt_to_phys_cords[DISPLAY_ROWS][DISPLAY_COLS] = {
 uint8_t virtual_screen[DISPLAY_ROWS][DISPLAY_COLS];
 uint8_t physical_screen[PHYSICAL_SEGMENT_PINS][PHYSICAL_DIGIT_PINS];
 
+void debugShowVirtualScreen() {
+  for (int row = 0; row < DISPLAY_ROWS; row++) {
+    for (int col = 0; col < DISPLAY_COLS; col++) {
+      Serial.print(virtual_screen[row][col] ? "▓▓" : "  ");
+      if (col == 2 || col == 5 || col == 6 || col == 9 || col == 12 || col == 13 || col == 16) {
+        Serial.print("  ");
+      }
+    }
+    Serial.println();
+  }
+  Serial.println();
+};
+
+void debugShowPhysicalScreen() {
+  for (int segment = 0; segment < PHYSICAL_SEGMENT_PINS; segment++) {
+    Serial.printf("Segment (row) %d: ", segment);
+    for (int digit = 0; digit < PHYSICAL_DIGIT_PINS; digit++) {
+      if (physical_screen[segment][digit]) {
+        Serial.printf("%1x", digit);
+      } else {
+        Serial.print(" ");
+      }
+    }
+    Serial.println();
+  }
+  Serial.println();
+};
+
 void copyVirtualToPhysical() {
   for (int row = 0; row < DISPLAY_ROWS; row++) {
     for (int col = 0; col < DISPLAY_COLS; col++) {
@@ -193,25 +245,23 @@ void copyVirtualToPhysical() {
 };
 
 void showPhysicalScreen() {
-  for (int segment = 0; segment < PHYSICAL_SEGMENT_PINS; segment++) {
+  for (int digit = 0; digit < PHYSICAL_DIGIT_PINS; digit++) {
     int mask = 0;
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < PHYSICAL_SEGMENT_PINS; i++) {
       mask <<= 1;
-      mask |= physical_screen[segment][i];
+      mask |= physical_screen[i][digit];
     }
-    max7219.setRow(0, segment, mask);
-
-    mask = 0;
-    for (int i = 0; i < 8; i++) {
-      mask <<= 1;
-      mask |= physical_screen[segment][i + 8];
-    }
-    max7219.setRow(1, segment, mask);
+    mx.setColumn(digit, mask);
   }
 };
 
 void showVirtualScreen() {
+  // Serial.println("Showing virtual screen");
+  debugShowVirtualScreen();  // FIXME
+
   copyVirtualToPhysical();
+
+  debugShowPhysicalScreen();  // FIXME
   showPhysicalScreen();
 };
 
@@ -253,7 +303,7 @@ void drawVirtualDigit(int digit, int pos) {
 };
 
 void drawTime(tm rtcTime) {
-  Serial.printf("RTC time: %02d:%02d:%02d\n", rtcTime.tm_hour, rtcTime.tm_min, rtcTime.tm_sec);
+  // Serial.printf("Displaying RTC time: %02d:%02d:%02d\n", rtcTime.tm_hour, rtcTime.tm_min, rtcTime.tm_sec);
 
   drawVirtualDigit(rtcTime.tm_hour / 10, 0);
   drawVirtualDigit(rtcTime.tm_hour % 10, 3);
@@ -271,7 +321,68 @@ void drawDots(bool onOff) {
   virtual_screen[3][13] = onOff;
 }
 
+void setup() {
+  Serial.begin(115200); /* prepare for possible serial debug */
+
+  wdtStop();
+  wifiManager.setHostname(HOSTNAME);
+  wifiManager.setConnectRetries(3);
+  wifiManager.setConnectTimeout(15);            // 15 seconds
+  wifiManager.setConfigPortalTimeout(10 * 60);  // Stay 10 minutes max in the AP web portal, then reboot
+  wifiManager.autoConnect();
+  logResetReason();
+  wdtInit();
+
+  ArduinoOTA.setHostname(HOSTNAME);
+  ArduinoOTA.begin();
+  ArduinoOTA.onStart([]() {
+    DEBUG_PRINT("OTA Start");
+    wdtStop();
+  });
+  ArduinoOTA.onEnd([]() { DEBUG_PRINT("OTA End"); });
+
+  DEBUG_PRINT("Initializing MD_MAX72XX");
+  if (!mx.begin()) {
+    DEBUG_PRINT("MD_MAX72XX initialization failed");
+    wdtStop();
+    // sleep for an hour
+    delay(3600 * SECONDS_TO_MILLIS);
+    // reset the ESP32
+    ESP.restart();
+  };
+
+  // mx.control(MD_MAX72XX::INTENSITY, MAX_INTENSITY);
+  test_blinking();
+  Serial.println("Test blinking done");
+  mx.clear();
+  // test_on_off();
+  // test_simple_on();
+  // Serial.println("Test on/off done");
+
+  // // FIXME test
+  // digitalWrite(RGB_BUILTIN, HIGH);  // Turn the RGB LED white
+  // delay(200);
+  // digitalWrite(RGB_BUILTIN, LOW);  // Turn the RGB LED off
+  // delay(200);
+  // neopixelWrite(RGB_BUILTIN, RGB_BRIGHTNESS, 0, 0);  // Red
+  // delay(200);
+  // neopixelWrite(RGB_BUILTIN, 0, RGB_BRIGHTNESS, 0);  // Green
+  // delay(200);
+  // neopixelWrite(RGB_BUILTIN, 0, 0, RGB_BRIGHTNESS);  // Blue
+  // delay(200);
+  // neopixelWrite(RGB_BUILTIN, 0, 0, 0);  // Off / black
+  // delay(200);
+
+  lastTime = 0;
+  DEBUG_PRINT("Timezone: %s", TIMEZONE);
+  DEBUG_PRINT("NTP server: %s", NTP_SERVER);
+  DEBUG_PRINT("Starting NTP sync...");
+  configTzTime(TIMEZONE, NTP_SERVER);
+  sntp_set_time_sync_notification_cb(cbSyncTime);
+}
+
 void loop() {
+  // Serial.println("Looping...");
   ArduinoOTA.handle();
   wdtRefresh();
 

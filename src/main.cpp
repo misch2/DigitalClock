@@ -228,7 +228,6 @@ void debugShowInternalData() {
 };
 
 void updateInternalScreen() {
-  // FIXME buffer overflow here?
   for (int row = 0; row < CLOCK_ROWS; row++) {
     for (int col = 0; col < CLOCK_COLUMNS; col++) {
       if (map_visible_to_internal_cords[row][col] == -1) {
@@ -343,14 +342,6 @@ void drawDots(bool onOff) {
   visible_screen[3][13] = onOff;
 }
 
-void test01() {
-  Serial.println("in test01");
-  mx.clear();
-  mx.setPoint(0, 0, true);
-  delay(1000);
-  Serial.println("test01 finished");
-};
-
 void setup() {
   Serial.begin(115200); /* prepare for possible serial debug */
 
@@ -382,27 +373,8 @@ void setup() {
   };
 
   mx.control(MD_MAX72XX::INTENSITY, 0);
-  // test_blinking();
 
   // indicate that time is not synced yet
-  // clearScreen();
-
-  // test01();
-
-  // for (int repeat = 0; repeat < 999; repeat++) {
-  //   for (int col = 0; col < CLOCK_COLUMNS; col++) {
-  //     clearScreen();
-  //     for (int row = 0; row < CLOCK_ROWS; row++) {
-  //       visible_screen[row][col] = 1;
-  //     }
-  //     Serial.printf("displaying colum %d\n", col);
-  //     sendScreenToDevice();
-  //     delay(200);
-  //     wdtRefresh();
-  //   }
-  //   delay(2000);
-  // };
-
   drawMinusSign(0);
   drawMinusSign(3);
   drawMinusSign(7);
@@ -410,7 +382,6 @@ void setup() {
   drawMinusSign(14);
   drawMinusSign(17);
   sendScreenToDevice();
-  // delay(30000);
 
   lastTime = 0;
   DEBUG_PRINT("Timezone: %s", TIMEZONE);

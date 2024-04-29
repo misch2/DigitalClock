@@ -36,20 +36,6 @@
 // Arbitrary pins (bit banged SPI, no problem with low speed devices like MAX72xx)
 MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, DATA_PIN, CLK_PIN, CS_PIN, MAX_DEVICES);
 
-// Internal LED matrix:
-//
-// XXX XXX X XXX XXX   XXX XXX
-// X X X X X X X X X X X X X X
-// XXX XXX   XXX XXX   XXX XXX
-// X X X X X X X X X X X X X X
-// XXX XXX X XXX XXX   XXX XXX
-
-// how the visible screen is mapped to the physical screen
-#define CLOCK_ROWS 5
-#define CLOCK_COLUMNS 20
-#define PHYSICAL_DIGIT_PINS 16
-#define PHYSICAL_SEGMENT_PINS 6
-
 WiFiManager wifiManager;
 WiFiClient wifiClient;
 time_t lastTime;
@@ -138,7 +124,7 @@ void cbSyncTime(struct timeval *tv) {  // callback function to show when NTP was
 void test_blinking()
 // Uses the test function of the MAX72xx to blink the display on and off.
 {
-  int nDelay = 300;
+  int nDelay = 1000;
 
   Serial.println("\nBlinking");
 
@@ -149,25 +135,69 @@ void test_blinking()
     mx.control(MD_MAX72XX::TEST, MD_MAX72XX::OFF);
     delay(nDelay);
 
-    nDelay -= 30;
+    nDelay -= 500;
     wdtRefresh();
   }
+
+  mx.control(0, MD_MAX72XX::TEST, MD_MAX72XX::ON);
+  delay(1000);
+  mx.control(1, MD_MAX72XX::TEST, MD_MAX72XX::ON);
+  delay(1000);
+  mx.control(0, MD_MAX72XX::TEST, MD_MAX72XX::OFF);
+  delay(1000);
+  mx.control(1, MD_MAX72XX::TEST, MD_MAX72XX::OFF);
+  delay(1000);
+
   Serial.println("Stopped blinking");
 };
 
-// Mapping of define matrix of 8 rows and 16 columns
+// Internal LED matrix:
+//
+// XXX XXX X XXX XXX   XXX XXX
+// X X X X X X X X X X X X X X
+// XXX XXX   XXX XXX   XXX XXX
+// X X X X X X X X X X X X X X
+// XXX XXX X XXX XXX   XXX XXX
+
+// How the visible screen is mapped to the physical screen.
+// While there is 20x5 pixels visible on the clock, the internal wiring is 16x6 pins (8x6 + 8x6 really)
+#define CLOCK_ROWS 5
+#define CLOCK_COLUMNS 20
+#define PHYSICAL_DIGIT_PINS 16
+#define PHYSICAL_SEGMENT_PINS 8
+
+// Mapping of clock pixels to the internal wiring.
+// Values are in the format of 0xXY where X is the column ("digit" in the MAX7219 terminology) and Y is the row ("segment").
+// For example the 0x21 means pin #2 on the "digits" connector and pin #1 on the "segments" connector.
 // clang-format off
 int map_visible_to_internal_cords[CLOCK_ROWS][CLOCK_COLUMNS] = {
-    {0x00, 0x11, 0x21, 0x31, 0x10, 0x40, 0x50, 0x60, 0x71, 0x81, 0x91, 0x70, 0xa0,   -1, 0xb0, 0xc1, 0xd1, 0xe1, 0xc0, 0xf0},
-    {0x02, -1,   0x22, 0x32,   -1, 0x42, 0x52, 0x62,   -1, 0x82, 0x92,   -1, 0xa2, 0x51, 0xb2,   -1, 0xd2, 0xe2,   -1, 0xf2},
-    {0x03, 0x13, 0x23, 0x33, 0x12, 0x43,   -1, 0x63, 0x73, 0x83, 0x93, 0x72, 0xa3,   -1, 0xb3, 0xc3, 0xd3, 0xe3, 0xc2, 0xf3},
-    {0x04, -1,   0x24, 0x34,   -1, 0x44, 0x54, 0x64,   -1, 0x84, 0x94,   -1, 0xa4, 0x53, 0xb4,   -1, 0xd4, 0xe4,   -1, 0xf4},
-    {0x05, 0x15, 0x25, 0x35, 0x14, 0x45, 0x55, 0x65, 0x75, 0x85, 0x95, 0x74, 0xa5,   -1, 0xb5, 0xc5, 0xd5, 0xe5, 0xc4, 0xf5},
+//      0     1     2     3     4     5     6     7     8     9    10    11    12    13    14    15    16    17    18    19
+    {0x00, 0x11, 0x21, 0x31, 0x10, 0x40, 0x50, 0x60, 0x71, 0x81, 0x91, 0x70, 0xa0,   -1, 0xb0, 0xc1, 0xd1, 0xe1, 0xc0, 0xf0}, // 0
+    {0x02, -1,   0x22, 0x32,   -1, 0x42, 0x52, 0x62,   -1, 0x82, 0x92,   -1, 0xa2, 0x51, 0xb2,   -1, 0xd2, 0xe2,   -1, 0xf2}, // 1
+    {0x03, 0x13, 0x23, 0x33, 0x12, 0x43,   -1, 0x63, 0x73, 0x83, 0x93, 0x72, 0xa3,   -1, 0xb3, 0xc3, 0xd3, 0xe3, 0xc2, 0xf3}, // 2
+    {0x04, -1,   0x24, 0x34,   -1, 0x44, 0x54, 0x64,   -1, 0x84, 0x94,   -1, 0xa4, 0x53, 0xb4,   -1, 0xd4, 0xe4,   -1, 0xf4}, // 3
+    {0x05, 0x15, 0x25, 0x35, 0x14, 0x45, 0x55, 0x65, 0x75, 0x85, 0x95, 0x74, 0xa5,   -1, 0xb5, 0xc5, 0xd5, 0xe5, 0xc4, 0xf5}, // 4
 };
+
+// But the internal wiring is not as simple as that. The MAX7219 has 8 pins for the "digits" and 8 pins for the "segments". So the wiring is split between these
+// two ICs and each of them takes care of a single 8x6 matrix. For easier debugging of the "birds nest" of wires, we can remap each output pin:
+
+int digit_pins_to_internal[8 * MAX_DEVICES] = {
+    // IC 1
+    7, 6, 5, 4, 3, 2, 1, 0,
+    // IC 2
+    15, 14, 13, 12, 11, 10, 9, 8
+    };
+
+int segment_pins_to_internal[8 * MAX_DEVICES] = {
+    // IC 1
+    0, 1, 2, 3, 4, 5, 6, 7,
+    // IC 2
+    0, 1, 2, 3, 4, 5, 6, 7};
 // clang-format on
 
 uint8_t visible_screen[CLOCK_ROWS][CLOCK_COLUMNS];
-uint8_t internal_screen[PHYSICAL_SEGMENT_PINS][PHYSICAL_DIGIT_PINS];
+uint8_t internal_buffer[PHYSICAL_SEGMENT_PINS][PHYSICAL_DIGIT_PINS];
 
 void debugShowVisibleScreen() {
   for (int row = 0; row < CLOCK_ROWS; row++) {
@@ -186,10 +216,10 @@ void debugShowInternalData() {
   for (int segment = 0; segment < PHYSICAL_SEGMENT_PINS; segment++) {
     Serial.printf("Segment (row) %d: ", segment);
     for (int digit = 0; digit < PHYSICAL_DIGIT_PINS; digit++) {
-      if (internal_screen[segment][digit]) {
-        Serial.printf("%1x", digit);
+      if (internal_buffer[segment][digit]) {
+        Serial.printf("%1x ", digit);
       } else {
-        Serial.print(" ");
+        Serial.print("  ");
       }
     }
     Serial.println();
@@ -198,19 +228,36 @@ void debugShowInternalData() {
 };
 
 void updateInternalScreen() {
+  // FIXME buffer overflow here?
   for (int row = 0; row < CLOCK_ROWS; row++) {
     for (int col = 0; col < CLOCK_COLUMNS; col++) {
       if (map_visible_to_internal_cords[row][col] == -1) {
         continue;
-      }
+      };
 
-      uint8_t digit = map_visible_to_internal_cords[row][col] >> 4;
-      uint8_t segment = map_visible_to_internal_cords[row][col] & 0x0F;
+      int digit = map_visible_to_internal_cords[row][col] >> 4;
+      int segment = map_visible_to_internal_cords[row][col] & 0x0F;
       if (digit >= PHYSICAL_DIGIT_PINS || segment >= PHYSICAL_SEGMENT_PINS) {
         continue;
       };
 
-      internal_screen[segment][digit] = visible_screen[row][col];
+      // Serial.printf("Visible screen: r%d,c%d\n", row, col);
+      // Serial.printf("  -> tmp: s%d,d%d\n", segment, digit);
+      if (digit < 8) {
+        // first IC
+        digit = digit_pins_to_internal[digit];
+        segment = segment_pins_to_internal[segment];
+      } else {
+        // second IC
+        digit = digit_pins_to_internal[digit];
+        segment = segment_pins_to_internal[segment + 8];
+      }
+      if (digit < 0 || segment < 0) {
+        continue;
+      };
+      // Serial.printf("     -> Internal screen: s%d,d%d\n", segment, digit);
+
+      internal_buffer[segment][digit] = visible_screen[row][col];
     }
   }
 };
@@ -220,7 +267,7 @@ void sendInternalScreenToDevice() {
     int mask = 0;
     for (int i = 0; i < PHYSICAL_SEGMENT_PINS; i++) {
       mask <<= 1;
-      mask |= internal_screen[i][digit];
+      mask |= internal_buffer[i][digit];
     }
     mx.setColumn(digit, mask);
   }
@@ -296,6 +343,14 @@ void drawDots(bool onOff) {
   visible_screen[3][13] = onOff;
 }
 
+void test01() {
+  Serial.println("in test01");
+  mx.clear();
+  mx.setPoint(0, 0, true);
+  delay(1000);
+  Serial.println("test01 finished");
+};
+
 void setup() {
   Serial.begin(115200); /* prepare for possible serial debug */
 
@@ -326,19 +381,28 @@ void setup() {
     ESP.restart();
   };
 
-  // mx.control(MD_MAX72XX::INTENSITY, MAX_INTENSITY);
-  test_blinking();
-  Serial.println("Test blinking done");
-
-  lastTime = 0;
-  DEBUG_PRINT("Timezone: %s", TIMEZONE);
-  DEBUG_PRINT("NTP server: %s", NTP_SERVER);
-  DEBUG_PRINT("Starting NTP sync...");
-  configTzTime(TIMEZONE, NTP_SERVER);
-  sntp_set_time_sync_notification_cb(cbSyncTime);
+  mx.control(MD_MAX72XX::INTENSITY, 0);
+  // test_blinking();
 
   // indicate that time is not synced yet
-  clearScreen();
+  // clearScreen();
+
+  // test01();
+
+  // for (int repeat = 0; repeat < 999; repeat++) {
+  //   for (int col = 0; col < CLOCK_COLUMNS; col++) {
+  //     clearScreen();
+  //     for (int row = 0; row < CLOCK_ROWS; row++) {
+  //       visible_screen[row][col] = 1;
+  //     }
+  //     Serial.printf("displaying colum %d\n", col);
+  //     sendScreenToDevice();
+  //     delay(200);
+  //     wdtRefresh();
+  //   }
+  //   delay(2000);
+  // };
+
   drawMinusSign(0);
   drawMinusSign(3);
   drawMinusSign(7);
@@ -346,6 +410,14 @@ void setup() {
   drawMinusSign(14);
   drawMinusSign(17);
   sendScreenToDevice();
+  // delay(30000);
+
+  lastTime = 0;
+  DEBUG_PRINT("Timezone: %s", TIMEZONE);
+  DEBUG_PRINT("NTP server: %s", NTP_SERVER);
+  DEBUG_PRINT("Starting NTP sync...");
+  configTzTime(TIMEZONE, NTP_SERVER);
+  sntp_set_time_sync_notification_cb(cbSyncTime);
 }
 
 void loop() {
@@ -363,6 +435,14 @@ void loop() {
       drawTime(rtcTime);
       drawDots(true);
       sendScreenToDevice();
+
+      if (rtcTime.tm_hour >= 22 || rtcTime.tm_hour <= 5) {
+        mx.control(MD_MAX72XX::INTENSITY, 0);
+      } else if (rtcTime.tm_hour >= 20 || rtcTime.tm_hour <= 7) {
+        mx.control(MD_MAX72XX::INTENSITY, 3);
+      } else {
+        mx.control(MD_MAX72XX::INTENSITY, 7);
+      };
     };
   } else {
     blinkingDotsIndicator.stop();

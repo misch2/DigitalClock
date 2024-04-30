@@ -45,10 +45,6 @@ WiFiClient wifiClient;
 time_t lastTime;
 Timemark blinkingDotsIndicator(500 * MILLIS);
 
-void cbSyncTime(struct timeval *tv) {  // callback function to show when NTP was synchronized
-  DEBUG_PRINT("NTP time synchronized to %s", NTP_SERVER);
-}
-
 // Internal LED matrix:
 //
 // XXX XXX X XXX XXX   XXX XXX
@@ -281,6 +277,10 @@ void displayTime(tm rtcTime, bool showDots) {
   } else {
     mx.control(MD_MAX72XX::INTENSITY, 7);
   };
+}
+
+void cbSyncTime(struct timeval *tv) {  // callback function to show when NTP was synchronized
+  DEBUG_PRINT("NTP time synchronized to %s", NTP_SERVER);
 }
 
 void setup() {

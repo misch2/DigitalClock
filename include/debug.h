@@ -1,5 +1,6 @@
 #ifdef DEBUG
 #ifdef SYSLOG_SERVER
+
 // A UDP instance to let us send and receive packets over UDP
 WiFiUDP udpClient;
 // Create a new syslog instance with LOG_KERN facility
@@ -9,6 +10,7 @@ Syslog syslog(udpClient,
               SYSLOG_MYHOSTNAME,
               SYSLOG_MYAPPNAME,
               LOG_KERN);
+#ifndef DEBUG_PRINT
 #define DEBUG_PRINT(...)                                \
   Serial.printf(__VA_ARGS__);                           \
   Serial.print('\n');                                   \
@@ -31,6 +33,7 @@ Syslog syslog(udpClient,
 #endif
 #else
 #define DEBUG_PRINT(...)
+#endif
 #endif
 
 // WiFi is connected now => all messages go to syslog too.

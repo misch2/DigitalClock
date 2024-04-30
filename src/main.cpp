@@ -2,16 +2,21 @@
 #include <Arduino.h>
 #include <ArduinoOTA.h>
 #include <MD_MAX72xx.h>
+// #include <SPI.h>
 #include <Syslog.h>
 #include <Timemark.h>
+#ifdef ESP32
 #include <WiFi.h>
-#include <WiFiManager.h>
 #include <esp_sntp.h>
 #include <esp_task_wdt.h>
+#else
+#include <ESP8266WiFi.h>
+#endif
+#include <WiFiManager.h>
 
 // specific headers later
 // clang-format off
-// #define DEBUG
+#define DEBUG
 #include "secrets.h"
 #include "debug.h"
 // clang-format on
@@ -27,15 +32,22 @@
 // hardware configuration
 #define HARDWARE_TYPE MD_MAX72XX::DR0CR0RR0_HW
 #define MAX_DEVICES 2
-#define DATA_PIN 9
-#define CS_PIN 10
-#define CLK_PIN 11
+
 // SPI hardware interface
 // MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);
 // Specific SPI hardware interface
 // MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, SPI1, CS_PIN, MAX_DEVICES);
 // Arbitrary pins (bit banged SPI, no problem with low speed devices like MAX72xx)
+// MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, DATA_PIN, CLK_PIN, CS_PIN, MAX_DEVICES);
+#ifdef ESP32
+#define DATA_PIN 9
+#define CS_PIN 10
+#define CLK_PIN 11
 MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, DATA_PIN, CLK_PIN, CS_PIN, MAX_DEVICES);
+#else
+#define CS_PIN 15
+MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);
+#endif
 
 #define SECONDS_TO_MILLIS 1000
 #define MILLIS 1
@@ -246,6 +258,7 @@ void displaySelftest() {
 }
 
 void displayBootSequenceId(int seq) {
+  DEBUG_PRINT("Displaying boot sequence id %d", seq);
   clearScreen();
   drawDigit(seq, 0);
   sendScreenToDevice();
@@ -283,8 +296,17 @@ void cbSyncTime(struct timeval *tv) {  // callback function to show when NTP was
   DEBUG_PRINT("NTP time synchronized to %s", NTP_SERVER);
 }
 
+void cbSyncTimeESP8266(bool from_sntp) {  // callback function to show when NTP was synchronized
+  if (from_sntp) {
+    DEBUG_PRINT("NTP time synchronized to %s", NTP_SERVER);
+  } else {
+    DEBUG_PRINT("NTP time synchronized to local time");
+  };
+}
+
 void setup() {
   Serial.begin(115200); /* prepare for possible serial debug */
+  Serial.println("Starting...");
   wdtInit();
 
   DEBUG_PRINT("Initializing MD_MAX72XX");
@@ -295,6 +317,7 @@ void setup() {
     };
   };
 
+  DEBUG_PRINT("Display selftest");
   mx.control(MD_MAX72XX::INTENSITY, MAX_INTENSITY);
   displaySelftest();
   displayBootSequenceId(0);
@@ -327,7 +350,12 @@ void setup() {
   DEBUG_PRINT("NTP server: %s", NTP_SERVER);
   DEBUG_PRINT("Starting NTP sync...");
   configTzTime(TIMEZONE, NTP_SERVER);
+
+#ifdef ESP32
   sntp_set_time_sync_notification_cb(cbSyncTime);
+#else
+  settimeofday_cb(cbSyncTimeESP8266);
+#endif
 }
 
 void loop() {

@@ -9,16 +9,17 @@
 #include <esp_sntp.h>
 #include <esp_task_wdt.h>
 
-// then everything else
-
+// specific headers later
 // clang-format off
+// #define DEBUG
 #include "secrets.h"
 #include "debug.h"
-#include "main.h"
 // clang-format on
 
-#define SECONDS_TO_MILLIS 1000
-#define MILLIS 1
+// then everything else
+#include "main.h"
+#include "tests.h"
+#include "utils.h"
 
 #define TIMEZONE "CET-1CEST,M3.5.0,M10.5.0/3"  // Europe/Prague
 #define NTP_SERVER "cz.pool.ntp.org"
@@ -36,120 +37,17 @@
 // Arbitrary pins (bit banged SPI, no problem with low speed devices like MAX72xx)
 MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, DATA_PIN, CLK_PIN, CS_PIN, MAX_DEVICES);
 
+#define SECONDS_TO_MILLIS 1000
+#define MILLIS 1
+
 WiFiManager wifiManager;
 WiFiClient wifiClient;
 time_t lastTime;
 Timemark blinkingDotsIndicator(500 * MILLIS);
 
-void wdtInit() {
-#ifdef USE_WDT
-  DEBUG_PRINT("Configuring WDT for %d seconds", WDT_TIMEOUT);
-  esp_task_wdt_init(WDT_TIMEOUT, true);  // enable panic so ESP32 restarts
-  esp_task_wdt_add(NULL);                // add current thread to WDT watch
-#endif
-}
-
-void wdtRefresh() {
-#ifdef USE_WDT
-  // TRACE_PRINT("(WDT ping)");
-  esp_task_wdt_reset();
-#endif
-}
-
-void wdtStop() {
-#ifdef USE_WDT
-  DEBUG_PRINT("Stopping WDT...");
-  esp_task_wdt_deinit();
-#endif
-}
-
-String resetReasonAsString() {
-  esp_reset_reason_t reset_reason = esp_reset_reason();
-  if (reset_reason == ESP_RST_UNKNOWN) {
-    return "UNKNOWN";
-  } else if (reset_reason == ESP_RST_POWERON) {
-    return "POWERON";
-  } else if (reset_reason == ESP_RST_SW) {
-    return "SW";
-  } else if (reset_reason == ESP_RST_PANIC) {
-    return "PANIC";
-  } else if (reset_reason == ESP_RST_INT_WDT) {
-    return "INT_WDT";
-  } else if (reset_reason == ESP_RST_TASK_WDT) {
-    return "TASK_WDT";
-  } else if (reset_reason == ESP_RST_WDT) {
-    return "WDT";
-  } else if (reset_reason == ESP_RST_DEEPSLEEP) {
-    return "DEEPSLEEP";
-  } else if (reset_reason == ESP_RST_BROWNOUT) {
-    return "BROWNOUT";
-  } else if (reset_reason == ESP_RST_SDIO) {
-    return "SDIO";
-  } else {
-    return "? (" + String(reset_reason) + ")";
-  }
-};
-
-String wakeupReasonAsString() {
-  esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
-  if (wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED) {
-    return "UNDEFINED";
-  } else if (wakeup_reason == ESP_SLEEP_WAKEUP_EXT0) {
-    return "EXT0";
-  } else if (wakeup_reason == ESP_SLEEP_WAKEUP_EXT1) {
-    return "EXT1";
-  } else if (wakeup_reason == ESP_SLEEP_WAKEUP_TIMER) {
-    return "TIMER";
-  } else if (wakeup_reason == ESP_SLEEP_WAKEUP_TOUCHPAD) {
-    return "TOUCHPAD";
-  } else if (wakeup_reason == ESP_SLEEP_WAKEUP_ULP) {
-    return "ULP";
-  } else {
-    return "? (" + String(wakeup_reason) + ")";
-  }
-};
-
-void logResetReason() {
-  DEBUG_PRINT("Reset reason: %s", resetReasonAsString());
-  String wr = wakeupReasonAsString();
-  if (wr != "UNDEFINED") {
-    DEBUG_PRINT("Wakeup reason: %s", wr);
-  };
-};
-
 void cbSyncTime(struct timeval *tv) {  // callback function to show when NTP was synchronized
   DEBUG_PRINT("NTP time synchronized to %s", NTP_SERVER);
 }
-
-void test_blinking()
-// Uses the test function of the MAX72xx to blink the display on and off.
-{
-  int nDelay = 1000;
-
-  Serial.println("\nBlinking");
-
-  while (nDelay > 0) {
-    Serial.printf("Blinking delay: %d\n", nDelay);
-    mx.control(MD_MAX72XX::TEST, MD_MAX72XX::ON);
-    delay(nDelay);
-    mx.control(MD_MAX72XX::TEST, MD_MAX72XX::OFF);
-    delay(nDelay);
-
-    nDelay -= 500;
-    wdtRefresh();
-  }
-
-  mx.control(0, MD_MAX72XX::TEST, MD_MAX72XX::ON);
-  delay(1000);
-  mx.control(1, MD_MAX72XX::TEST, MD_MAX72XX::ON);
-  delay(1000);
-  mx.control(0, MD_MAX72XX::TEST, MD_MAX72XX::OFF);
-  delay(1000);
-  mx.control(1, MD_MAX72XX::TEST, MD_MAX72XX::OFF);
-  delay(1000);
-
-  Serial.println("Stopped blinking");
-};
 
 // Internal LED matrix:
 //
@@ -200,6 +98,7 @@ uint8_t visible_screen[CLOCK_ROWS][CLOCK_COLUMNS];
 uint8_t internal_buffer[PHYSICAL_SEGMENT_PINS][PHYSICAL_DIGIT_PINS];
 
 void debugShowVisibleScreen() {
+#ifdef DEBUG
   for (int row = 0; row < CLOCK_ROWS; row++) {
     for (int col = 0; col < CLOCK_COLUMNS; col++) {
       Serial.print(visible_screen[row][col] ? "▓▓" : "  ");
@@ -210,9 +109,11 @@ void debugShowVisibleScreen() {
     Serial.println();
   }
   Serial.println();
+#endif
 };
 
 void debugShowInternalData() {
+#ifdef DEBUG
   for (int segment = 0; segment < PHYSICAL_SEGMENT_PINS; segment++) {
     Serial.printf("Segment (row) %d: ", segment);
     for (int digit = 0; digit < PHYSICAL_DIGIT_PINS; digit++) {
@@ -225,6 +126,7 @@ void debugShowInternalData() {
     Serial.println();
   }
   Serial.println();
+#endif
 };
 
 void updateInternalScreen() {
@@ -273,10 +175,9 @@ void sendInternalScreenToDevice() {
 };
 
 void sendScreenToDevice() {
-  // debugShowVisibleScreen();  // FIXME
-
+  // debugShowVisibleScreen();
   updateInternalScreen();
-  // debugShowInternalData();  // FIXME
+  // debugShowInternalData();
   sendInternalScreenToDevice();
 };
 
@@ -342,8 +243,61 @@ void drawDots(bool onOff) {
   visible_screen[3][13] = onOff;
 }
 
+void displaySelftest() {
+  mx.control(MD_MAX72XX::TEST, MD_MAX72XX::ON);
+  delay(1000);
+  mx.control(MD_MAX72XX::TEST, MD_MAX72XX::OFF);
+}
+
+void displayBootSequenceId(int seq) {
+  clearScreen();
+  drawDigit(seq, 0);
+  sendScreenToDevice();
+}
+
+// Display this pattern to indicate that time has not been synced yet:
+// "-- -- --"
+void displayNotSyncedYet() {
+  clearScreen();
+  drawMinusSign(0);
+  drawMinusSign(3);
+  drawMinusSign(7);
+  drawMinusSign(10);
+  drawMinusSign(14);
+  drawMinusSign(17);
+  sendScreenToDevice();
+}
+
+void displayTime(tm rtcTime, bool showDots) {
+  clearScreen();
+  drawTime(rtcTime);
+  drawDots(showDots);
+  sendScreenToDevice();
+
+  if (rtcTime.tm_hour >= 22 || rtcTime.tm_hour <= 5) {
+    mx.control(MD_MAX72XX::INTENSITY, 0);
+  } else if (rtcTime.tm_hour >= 20 || rtcTime.tm_hour <= 7) {
+    mx.control(MD_MAX72XX::INTENSITY, 3);
+  } else {
+    mx.control(MD_MAX72XX::INTENSITY, 7);
+  };
+}
+
 void setup() {
   Serial.begin(115200); /* prepare for possible serial debug */
+  wdtInit();
+
+  DEBUG_PRINT("Initializing MD_MAX72XX");
+  if (!mx.begin()) {
+    DEBUG_PRINT("MD_MAX72XX initialization failed");
+    // halt the program (until WDT resets it)
+    while (1) {
+    };
+  };
+
+  mx.control(MD_MAX72XX::INTENSITY, MAX_INTENSITY);
+  displaySelftest();
+  displayBootSequenceId(0);
 
   wdtStop();
   wifiManager.setHostname(HOSTNAME);
@@ -354,6 +308,7 @@ void setup() {
   logResetReason();
   wdtInit();
 
+  displayBootSequenceId(1);
   ArduinoOTA.setHostname(HOSTNAME);
   ArduinoOTA.begin();
   ArduinoOTA.onStart([]() {
@@ -362,26 +317,10 @@ void setup() {
   });
   ArduinoOTA.onEnd([]() { DEBUG_PRINT("OTA End"); });
 
-  DEBUG_PRINT("Initializing MD_MAX72XX");
-  if (!mx.begin()) {
-    DEBUG_PRINT("MD_MAX72XX initialization failed");
-    wdtStop();
-    // sleep for an hour
-    delay(3600 * SECONDS_TO_MILLIS);
-    // reset the ESP32
-    ESP.restart();
-  };
+  displayBootSequenceId(2);
+  // test_blinking(mx);
 
-  mx.control(MD_MAX72XX::INTENSITY, 0);
-
-  // indicate that time is not synced yet
-  drawMinusSign(0);
-  drawMinusSign(3);
-  drawMinusSign(7);
-  drawMinusSign(10);
-  drawMinusSign(14);
-  drawMinusSign(17);
-  sendScreenToDevice();
+  displayNotSyncedYet();
 
   lastTime = 0;
   DEBUG_PRINT("Timezone: %s", TIMEZONE);
@@ -395,34 +334,19 @@ void loop() {
   ArduinoOTA.handle();
 
   tm rtcTime;
+  // eventually WDT will reset the device if NTP sync takes too long
   if (getLocalTime(&rtcTime)) {
     wdtRefresh();
     time_t curTime = mktime(&rtcTime);
     if (lastTime != curTime) {
+      displayTime(rtcTime, true);
+
       lastTime = curTime;
-      blinkingDotsIndicator.start();  // reset
-
-      clearScreen();
-      drawTime(rtcTime);
-      drawDots(true);
-      sendScreenToDevice();
-
-      if (rtcTime.tm_hour >= 22 || rtcTime.tm_hour <= 5) {
-        mx.control(MD_MAX72XX::INTENSITY, 0);
-      } else if (rtcTime.tm_hour >= 20 || rtcTime.tm_hour <= 7) {
-        mx.control(MD_MAX72XX::INTENSITY, 3);
-      } else {
-        mx.control(MD_MAX72XX::INTENSITY, 7);
-      };
+      blinkingDotsIndicator.start();
     };
-  } else {
-    blinkingDotsIndicator.stop();
-    // eventually WDT will reset the device if NTP sync takes too long
-  };
-
-  if (blinkingDotsIndicator.expired()) {
-    drawDots(false);
-    sendScreenToDevice();
+    if (blinkingDotsIndicator.expired()) {
+      displayTime(rtcTime, false);
+    };
   };
 
   delay(5 * MILLIS);

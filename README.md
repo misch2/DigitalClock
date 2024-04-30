@@ -1,3 +1,5 @@
+![Photo of a prototype](hw/photos/prototype.jpg)
+
 # Digital clock rework
 
 This is a simple personal HW+SW project. My goal here was to upgrade/fix an old JVD digital clock to automatically set time using NTP and to automatically adjust for DST. 

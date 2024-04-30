@@ -24,3 +24,9 @@ Most of the code just handles mapping the logical pixels to the right values for
 
 After powering up the clock displays a short self test (all segments fully on), then "0" while it's connecting to WiFi, then "-- -- --" as it's waiting for a sync. Once it knows the time it just displays it like any other clock do.
 
+## Libraries used
+
+- MD_MAX72XX @ 3.1.5
+- WiFiManager @ latest (2.0.17)
+- Timemark @ 1.0.0
+- Syslog @ 2.0.0

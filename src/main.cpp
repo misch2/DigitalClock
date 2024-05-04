@@ -44,8 +44,8 @@ void wdtInit() {
 #if defined(USE_WDT)
   DEBUG_PRINT("Configuring WDT for %d seconds", WDT_TIMEOUT);
   #if defined(ESP32)
-  esp_task_wdt_init(WDT_TIMEOUT, true);  // enable panic so ESP32 restarts
-  esp_task_wdt_add(NULL);                // add current thread to WDT watch
+  esp_task_wdt_init(WDT_TIMEOUT, true);
+  esp_task_wdt_add(NULL);
   #elif defined(ESP8266)
   ESP.wdtDisable();
   ESP.wdtEnable(WDT_TIMEOUT * SECONDS_TO_MILLIS);
@@ -341,7 +341,7 @@ void displaySelftest() {
 #define BOOT_SEQUENCE_OTA_IN_PROGRESS 9
 
 void displayBootSequenceId(int seq) {
-  DEBUG_PRINT("Displaying boot sequence id %d", seq);
+  // DEBUG_PRINT("Displaying boot sequence id %d", seq);
   clearScreen();
   drawDigit(seq, 0);
   sendScreenToDevice();
@@ -454,6 +454,7 @@ void loop() {
 
   if (outOfSyncTimer.expired()) {
     timeSyncedToNTP = false;
+    DEBUG_PRINT("NTP time out of sync");
   };
 
   tm rtcTime;

@@ -4,12 +4,7 @@
 // A UDP instance to let us send and receive packets over UDP
 WiFiUDP udpClient;
 // Create a new syslog instance with LOG_KERN facility
-Syslog syslog(udpClient,
-              SYSLOG_SERVER,
-              SYSLOG_PORT,
-              SYSLOG_MYHOSTNAME,
-              SYSLOG_MYAPPNAME,
-              LOG_KERN);
+Syslog syslog(udpClient, SYSLOG_SERVER, SYSLOG_PORT, SYSLOG_MYHOSTNAME, SYSLOG_MYAPPNAME, LOG_KERN);
 #ifndef DEBUG_PRINT
 #define DEBUG_PRINT(...)                                \
   Serial.printf(__VA_ARGS__);                           \
@@ -26,6 +21,7 @@ Syslog syslog(udpClient,
   } else {                                              \
     Serial.println(" (no syslog, WiFi not connected)"); \
   }
+#endif
 #else
 #define DEBUG_PRINT(...)      \
   Serial.printf(__VA_ARGS__); \
@@ -33,7 +29,6 @@ Syslog syslog(udpClient,
 #endif
 #else
 #define DEBUG_PRINT(...)
-#endif
 #endif
 
 // WiFi is connected now => all messages go to syslog too.

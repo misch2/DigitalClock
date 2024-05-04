@@ -336,7 +336,6 @@ void displaySelftest() {
 
 #define BOOT_SEQUENCE_INITIALIZING 0
 #define BOOT_SEQUENCE_OTA_SETUP 1
-#define BOOT_SEQUENCE_FINISHED 2
 #define BOOT_SEQUENCE_OTA_FINISHED 8
 #define BOOT_SEQUENCE_OTA_IN_PROGRESS 9
 
@@ -432,7 +431,6 @@ void setup() {
     displayBootSequenceId(BOOT_SEQUENCE_OTA_FINISHED);
   });
 
-  displayBootSequenceId(BOOT_SEQUENCE_FINISHED);
   outOfSyncTimer.start();
   displayNotSyncedYet();
 

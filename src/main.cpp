@@ -121,7 +121,7 @@ String resetReasonAsString() {
     return "SDIO";
   }
   return "? (" + String(reset_reason) + ")";
-};
+}
 
 String wakeupReasonAsString() {
   esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
@@ -139,7 +139,7 @@ String wakeupReasonAsString() {
     return "ULP";
   };
   return "? (" + String(wakeup_reason) + ")";
-};
+}
 #endif
 
 void logResetReason() {
@@ -152,7 +152,7 @@ void logResetReason() {
 #elif defined(ESP8266)
   DEBUG_PRINT("Reset reason: %s", ESP.getResetReason().c_str());
 #endif
-};
+}
 
 // Internal LED matrix:
 //
@@ -372,37 +372,38 @@ void displaySelftest() {
   mx.control(MD_MAX72XX::TEST, MD_MAX72XX::OFF);
 }
 
-#define BOOT_SEQUENCE_INITIALIZING 0
-#define BOOT_SEQUENCE_OTA_FINISHED 8
-#define BOOT_SEQUENCE_OTA_IN_PROGRESS 9
-
-void displayBootSequenceId(int seq) {
-  // DEBUG_PRINT("Displaying boot sequence id %d", seq);
+void displayTextBoot() {
   clearScreen();
-  if (seq == BOOT_SEQUENCE_INITIALIZING) {
-    // drawSymbol(FONT_CHAR_B_OFFSET, POSITION_DIGIT1);
-    // drawSymbol(FONT_CHAR_O_OFFSET, POSITION_DIGIT2);
-    // drawSymbol(FONT_CHAR_O_OFFSET, POSITION_DIGIT3);
-    // drawSymbol(FONT_CHAR_T_OFFSET, POSITION_DIGIT4);
-    drawSymbol(FONT_CHAR_W_OFFSET, POSITION_DIGIT1);
-    drawSymbol(FONT_CHAR_I_OFFSET, POSITION_DIGIT2);
-    drawSymbol(FONT_CHAR_F_OFFSET, POSITION_DIGIT3);
-    drawSymbol(FONT_CHAR_I_OFFSET, POSITION_DIGIT4);
-  } else if (seq == BOOT_SEQUENCE_OTA_IN_PROGRESS) {
-    drawSymbol(FONT_CHAR_O_OFFSET, POSITION_DIGIT1);
-    drawSymbol(FONT_CHAR_T_OFFSET, POSITION_DIGIT2);
-    drawSymbol(FONT_CHAR_A_OFFSET, POSITION_DIGIT3);
-    drawSymbol(FONT_DIGITS_OFFSET + 1, POSITION_DIGIT4);
-  } else if (seq == BOOT_SEQUENCE_OTA_FINISHED) {
-    drawSymbol(FONT_CHAR_O_OFFSET, POSITION_DIGIT1);
-    drawSymbol(FONT_CHAR_T_OFFSET, POSITION_DIGIT2);
-    drawSymbol(FONT_CHAR_A_OFFSET, POSITION_DIGIT3);
-    drawSymbol(FONT_DIGITS_OFFSET + 2, POSITION_DIGIT4);
-  } else {
-    drawSymbol(FONT_DIGITS_OFFSET + seq, POSITION_DIGIT1);
-  };
+  drawSymbol(FONT_CHAR_B_OFFSET, POSITION_DIGIT1);
+  drawSymbol(FONT_CHAR_O_OFFSET, POSITION_DIGIT2);
+  drawSymbol(FONT_CHAR_O_OFFSET, POSITION_DIGIT3);
+  drawSymbol(FONT_CHAR_T_OFFSET, POSITION_DIGIT4);
   sendScreenToDevice();
 }
+
+void displayTextWiFi() {
+  clearScreen();
+  drawSymbol(FONT_CHAR_W_OFFSET, POSITION_DIGIT1);
+  drawSymbol(FONT_CHAR_I_OFFSET, POSITION_DIGIT2);
+  drawSymbol(FONT_CHAR_F_OFFSET, POSITION_DIGIT3);
+  drawSymbol(FONT_CHAR_I_OFFSET, POSITION_DIGIT4);
+  sendScreenToDevice();
+}
+
+void displayTextOTA(int percent) {
+  clearScreen();
+  drawSymbol(FONT_CHAR_O_OFFSET, POSITION_DIGIT1);
+  drawSymbol(FONT_CHAR_T_OFFSET, POSITION_DIGIT2);
+  drawSymbol(FONT_CHAR_A_OFFSET, POSITION_DIGIT3);
+  if (percent >= 100) {
+    drawSymbol(FONT_DIGITS_OFFSET + 1, POSITION_DIGIT4);
+    percent -= 100;
+  };
+  drawSymbol(FONT_DIGITS_OFFSET + percent / 10, POSITION_DIGIT5);
+  drawSymbol(FONT_DIGITS_OFFSET + percent % 10, POSITION_DIGIT6);
+  sendScreenToDevice();
+  mx.control(MD_MAX72XX::INTENSITY, MAX_INTENSITY);
+};
 
 // Display this pattern to indicate that time has not been synced yet:
 // "-- -- --"
@@ -464,7 +465,7 @@ void setup() {
   DEBUG_PRINT("Display selftest");
   mx.control(MD_MAX72XX::INTENSITY, MAX_INTENSITY);
   displaySelftest();
-  displayBootSequenceId(BOOT_SEQUENCE_INITIALIZING);
+  displayTextWiFi();
 
   wdtStop();
   wifiManager.setHostname(HOSTNAME);
@@ -480,12 +481,17 @@ void setup() {
   ArduinoOTA.begin();
   ArduinoOTA.onStart([]() {
     DEBUG_PRINT("OTA Start");
-    displayBootSequenceId(BOOT_SEQUENCE_OTA_IN_PROGRESS);
+    displayTextOTA(0);
     wdtStop();
   });
   ArduinoOTA.onEnd([]() {
     DEBUG_PRINT("OTA End");
-    displayBootSequenceId(BOOT_SEQUENCE_OTA_FINISHED);
+    displayTextBoot();
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    if (total > 0) {
+      displayTextOTA(progress / (total / 100));
+    }
   });
 
   outOfSyncTimer.start();

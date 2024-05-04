@@ -5,12 +5,15 @@
 // #include <SPI.h>
 #include <Syslog.h>
 #include <Timemark.h>
-#ifdef ESP32
-#include <WiFi.h>
-#include <esp_sntp.h>
-#include <esp_task_wdt.h>
+#if defined(ESP32)
+  #include <WiFi.h>
+  #include <esp_sntp.h>
+  #include <esp_task_wdt.h>
+#elif defined(ESP8266)
+  // see https://github.com/esp8266/Arduino
+  #include <ESP8266WiFi.h>
 #else
-#include <ESP8266WiFi.h>
+  #error "Unsupported platform"
 #endif
 #include <WiFiManager.h>
 
@@ -40,12 +43,12 @@
 // Arbitrary pins (bit banged SPI, no problem with low speed devices like MAX72xx)
 // MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, DATA_PIN, CLK_PIN, CS_PIN, MAX_DEVICES);
 #ifdef ESP32
-#define DATA_PIN 9
-#define CS_PIN 10
-#define CLK_PIN 11
+  #define DATA_PIN 9
+  #define CS_PIN 10
+  #define CLK_PIN 11
 MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, DATA_PIN, CLK_PIN, CS_PIN, MAX_DEVICES);
 #else
-#define CS_PIN 15
+  #define CS_PIN 15
 MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);
 #endif
 

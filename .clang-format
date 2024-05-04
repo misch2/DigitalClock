@@ -11,3 +11,4 @@ BasedOnStyle: Google
 
 IndentWidth: 2
 ColumnLimit: 160
+IndentPPDirectives: BeforeHash

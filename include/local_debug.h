@@ -29,6 +29,7 @@ Syslog syslog(udpClient, SYSLOG_SERVER, SYSLOG_PORT, SYSLOG_MYHOSTNAME, SYSLOG_M
   #endif
 #else
   #define DEBUG_PRINT(...)
+  #error FIXME
 #endif
 
 // WiFi is connected now => all messages go to syslog too.

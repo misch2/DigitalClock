@@ -1,6 +1,7 @@
 #include <Arduino.h>
 
-#include "debug.h"
+#define DEBUG
+#include "local_debug.h"
 
 void wdtInit() {
 #if defined(USE_WDT)
@@ -78,6 +79,6 @@ void logResetReason() {
     DEBUG_PRINT("Wakeup reason: %s", wr);
   };
 #elif defined(ESP8266)
-  DEBUG_PRINT("Reset reason: %d", ESP.getResetReason());
+  DEBUG_PRINT("Reset reason: %s", ESP.getResetReason().c_str());
 #endif
 };

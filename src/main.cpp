@@ -1,8 +1,28 @@
-// clang-format off
-#include "main.h"
-// clang-format on
+#include <Arduino.h>
+#include <ArduinoOTA.h>
+#include <MD_MAX72xx.h>
+// #include <SPI.h>
+#include <Syslog.h>
+#include <Timemark.h>
+#if defined(ESP32)
+  #include <WiFi.h>
+  #include <esp_sntp.h>
+  #include <esp_task_wdt.h>
+#elif defined(ESP8266)
+  // see https://arduino-esp8266.readthedocs.io/en/latest/ for libraries reference
+  #include <ESP8266WiFi.h>
+#else
+  #error "Unsupported platform"
+#endif
+#include <WiFiManager.h>
 
+// clang-format off
+#define LOCAL_DEBUG
+#include "secrets.h"
+#include "local_debug.h"
+#include "main.h"
 #include "tests.h"
+// clang-format on
 
 #define TIMEZONE "CET-1CEST,M3.5.0,M10.5.0/3"  // Europe/Prague
 #define NTP_SERVER "cz.pool.ntp.org"
@@ -141,6 +161,15 @@ void logResetReason() {
 // XXX XXX   XXX XXX   XXX XXX
 // X X X X X X X X X X X X X X
 // XXX XXX X XXX XXX   XXX XXX
+
+#define POSITION_DIGIT1 0
+#define POSITION_DIGIT2 3
+#define POSITION_COLON1 6
+#define POSITION_DIGIT3 7
+#define POSITION_DIGIT4 10
+#define POSITION_COLON2 13
+#define POSITION_DIGIT5 14
+#define POSITION_DIGIT6 17
 
 // How the visible screen is mapped to the physical screen.
 // While there is 20x5 pixels visible on the clock, the internal wiring is 16x6 pins (8x6 + 8x6 really)
@@ -312,20 +341,20 @@ void drawMinusSign(int pos) {
 void drawTime(tm rtcTime) {
   // Serial.printf("Displaying RTC time: %02d:%02d:%02d\n", rtcTime.tm_hour, rtcTime.tm_min, rtcTime.tm_sec);
 
-  drawDigit(rtcTime.tm_hour / 10, 0);
-  drawDigit(rtcTime.tm_hour % 10, 3);
-  drawDigit(rtcTime.tm_min / 10, 7);
-  drawDigit(rtcTime.tm_min % 10, 10);
-  drawDigit(rtcTime.tm_sec / 10, 14);
-  drawDigit(rtcTime.tm_sec % 10, 17);
+  drawDigit(rtcTime.tm_hour / 10, POSITION_DIGIT1);
+  drawDigit(rtcTime.tm_hour % 10, POSITION_DIGIT2);
+  drawDigit(rtcTime.tm_min / 10, POSITION_DIGIT3);
+  drawDigit(rtcTime.tm_min % 10, POSITION_DIGIT4);
+  drawDigit(rtcTime.tm_sec / 10, POSITION_DIGIT5);
+  drawDigit(rtcTime.tm_sec % 10, POSITION_DIGIT6);
 };
 
-void drawDots(bool onOff) {
-  visible_screen[1][6] = onOff;
-  visible_screen[3][6] = onOff;
+void drawColons(bool onOff) {
+  visible_screen[1][POSITION_COLON1] = onOff;
+  visible_screen[3][POSITION_COLON1] = onOff;
 
-  visible_screen[1][13] = onOff;
-  visible_screen[3][13] = onOff;
+  visible_screen[1][POSITION_COLON2] = onOff;
+  visible_screen[3][POSITION_COLON2] = onOff;
 }
 
 void displaySelftest() {
@@ -342,7 +371,7 @@ void displaySelftest() {
 void displayBootSequenceId(int seq) {
   // DEBUG_PRINT("Displaying boot sequence id %d", seq);
   clearScreen();
-  drawDigit(seq, 0);
+  drawDigit(seq, POSITION_DIGIT1);
   sendScreenToDevice();
 }
 
@@ -350,19 +379,19 @@ void displayBootSequenceId(int seq) {
 // "-- -- --"
 void displayNotSyncedYet() {
   clearScreen();
-  drawMinusSign(0);
-  drawMinusSign(3);
-  drawMinusSign(7);
-  drawMinusSign(10);
-  drawMinusSign(14);
-  drawMinusSign(17);
+  drawMinusSign(POSITION_DIGIT1);
+  drawMinusSign(POSITION_DIGIT2);
+  drawMinusSign(POSITION_DIGIT3);
+  drawMinusSign(POSITION_DIGIT4);
+  drawMinusSign(POSITION_DIGIT5);
+  drawMinusSign(POSITION_DIGIT6);
   sendScreenToDevice();
 }
 
 void displayTime(tm rtcTime, bool showDots) {
   clearScreen();
   drawTime(rtcTime);
-  drawDots(showDots);
+  drawColons(showDots);
   sendScreenToDevice();
 
   if (rtcTime.tm_hour >= 22 || rtcTime.tm_hour <= 5) {

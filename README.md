@@ -43,10 +43,10 @@ After powering up the clock displays a short self test (all segments fully on), 
 * Clock without blinking colons
     Running from local time source, time has been unsynchronised for more than 6 hours.
 
-* `OT⠀A1⠀⠀⠀`
-    OTA in progress.
+* `OT⠀A⠀⠀00`
+    OTA in progress (digits change from 00 % to 100 %)
 
-* `OT⠀A2⠀⠀⠀`
+* `BO⠀OB⠀⠀⠀`
     OTA finished, rebooting.
 
 ## Libraries used

@@ -25,7 +25,7 @@
 // clang-format on
 
 // then everything else
-#define VERSION "20240426.1"
+#define VERSION "20240504.1"
 #define USE_WDT 1
 #define WDT_TIMEOUT 60  // seconds
 

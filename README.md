@@ -31,13 +31,10 @@ After powering up the clock displays a short self test (all segments fully on), 
 * `88:88:88` in full brightness
     Booting, display selftest.
 
-* `0       `
+* `WI⠀FI⠀⠀⠀`
     Booting, connecting to WiFi.
 
-* `1       `
-    Booting, WiFi connected, setting up OTA and NTP
-
-* `-- -- --`
+* `--⠀--⠀--`
     Booting, waiting for the first NTP synchronisation.
 
 * Clock with blinking colons
@@ -45,6 +42,12 @@ After powering up the clock displays a short self test (all segments fully on), 
 
 * Clock without blinking colons
     Running from local time source, time has been unsynchronised for more than 6 hours.
+
+* `OT⠀A1⠀⠀⠀`
+    OTA in progress.
+
+* `OT⠀A2⠀⠀⠀`
+    OTA finished, rebooting.
 
 ## Libraries used
 

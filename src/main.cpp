@@ -1,34 +1,8 @@
-
-// external libraries first
-#include <Arduino.h>
-#include <ArduinoOTA.h>
-#include <MD_MAX72xx.h>
-// #include <SPI.h>
-#include <Syslog.h>
-#include <Timemark.h>
-#if defined(ESP32)
-  #include <WiFi.h>
-  #include <esp_sntp.h>
-  #include <esp_task_wdt.h>
-#elif defined(ESP8266)
-  // see https://arduino-esp8266.readthedocs.io/en/latest/ for libraries reference
-  #include <ESP8266WiFi.h>
-#else
-  #error "Unsupported platform"
-#endif
-#include <WiFiManager.h>
-
-// specific headers later
 // clang-format off
-#define DEBUG
-#include "secrets.h"
-#include "local_debug.h"
+#include "main.h"
 // clang-format on
 
-// then everything else
-#include "main.h"
 #include "tests.h"
-#include "utils.h"
 
 #define TIMEZONE "CET-1CEST,M3.5.0,M10.5.0/3"  // Europe/Prague
 #define NTP_SERVER "cz.pool.ntp.org"
@@ -53,18 +27,112 @@ MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, DATA_PIN, CLK_PIN, CS_PIN, MAX_DEVICES
 MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);
 #endif
 
-#define MILLIS 1
-#define SECONDS_TO_MILLIS (1000 * MILLIS)
-#define MINUTES_TO_MILLIS (60 * SECONDS_TO_MILLIS)
-#define HOURS_TO_MILLIS (60 * MINUTES_TO_MILLIS)
-
 WiFiManager wifiManager;
 WiFiClient wifiClient;
+#if defined(SYSLOG_SERVER)
+WiFiUDP udpClient;
+Syslog syslog(udpClient, SYSLOG_SERVER, SYSLOG_PORT, SYSLOG_MYHOSTNAME, SYSLOG_MYAPPNAME, LOG_KERN);
+#endif
+
 time_t lastTime = 0;
 
 bool timeSyncedToNTP = false;
 Timemark blinkingDotsIndicator(500 * MILLIS);
 Timemark outOfSyncTimer(6 * HOURS_TO_MILLIS);
+
+void wdtInit() {
+#if defined(USE_WDT)
+  DEBUG_PRINT("Configuring WDT for %d seconds", WDT_TIMEOUT);
+  #if defined(ESP32)
+  esp_task_wdt_init(WDT_TIMEOUT, true);  // enable panic so ESP32 restarts
+  esp_task_wdt_add(NULL);                // add current thread to WDT watch
+  #elif defined(ESP8266)
+  ESP.wdtDisable();
+  ESP.wdtEnable(WDT_TIMEOUT * SECONDS_TO_MILLIS);
+  ESP.wdtFeed();
+  #endif
+#endif
+}
+
+void wdtRefresh() {
+#if defined(USE_WDT)
+  // TRACE_PRINT("(WDT ping)");
+  #if defined(ESP32)
+  esp_task_wdt_reset();
+  #elif defined(ESP8266)
+  ESP.wdtFeed();
+  #endif
+#endif
+}
+
+void wdtStop() {
+#if defined(USE_WDT)
+  DEBUG_PRINT("Stopping WDT...");
+  #if defined(ESP32)
+  esp_task_wdt_deinit();
+  #elif defined(ESP8266)
+  ESP.wdtDisable();
+  #endif
+#endif
+}
+
+#if defined(ESP32)
+String resetReasonAsString() {
+  esp_reset_reason_t reset_reason = esp_reset_reason();
+  if (reset_reason == ESP_RST_UNKNOWN) {
+    return "UNKNOWN";
+  } else if (reset_reason == ESP_RST_POWERON) {
+    return "POWERON";
+  } else if (reset_reason == ESP_RST_SW) {
+    return "SW";
+  } else if (reset_reason == ESP_RST_PANIC) {
+    return "PANIC";
+  } else if (reset_reason == ESP_RST_INT_WDT) {
+    return "INT_WDT";
+  } else if (reset_reason == ESP_RST_TASK_WDT) {
+    return "TASK_WDT";
+  } else if (reset_reason == ESP_RST_WDT) {
+    return "WDT";
+  } else if (reset_reason == ESP_RST_DEEPSLEEP) {
+    return "DEEPSLEEP";
+  } else if (reset_reason == ESP_RST_BROWNOUT) {
+    return "BROWNOUT";
+  } else if (reset_reason == ESP_RST_SDIO) {
+    return "SDIO";
+  }
+  return "? (" + String(reset_reason) + ")";
+};
+
+String wakeupReasonAsString() {
+  esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
+  if (wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED) {
+    return "UNDEFINED";
+  } else if (wakeup_reason == ESP_SLEEP_WAKEUP_EXT0) {
+    return "EXT0";
+  } else if (wakeup_reason == ESP_SLEEP_WAKEUP_EXT1) {
+    return "EXT1";
+  } else if (wakeup_reason == ESP_SLEEP_WAKEUP_TIMER) {
+    return "TIMER";
+  } else if (wakeup_reason == ESP_SLEEP_WAKEUP_TOUCHPAD) {
+    return "TOUCHPAD";
+  } else if (wakeup_reason == ESP_SLEEP_WAKEUP_ULP) {
+    return "ULP";
+  };
+  return "? (" + String(wakeup_reason) + ")";
+};
+#endif
+
+void logResetReason() {
+#if defined(ESP32)
+  DEBUG_PRINT("Reset reason: %s", resetReasonAsString());
+  String wr = wakeupReasonAsString();
+  if (wr != "UNDEFINED") {
+    DEBUG_PRINT("Wakeup reason: %s", wr);
+  };
+#elif defined(ESP8266)
+  DEBUG_PRINT("Reset reason: %s", ESP.getResetReason().c_str());
+#endif
+};
 
 // Internal LED matrix:
 //
@@ -115,7 +183,7 @@ uint8_t visible_screen[CLOCK_ROWS][CLOCK_COLUMNS];
 uint8_t internal_buffer[PHYSICAL_SEGMENT_PINS][PHYSICAL_DIGIT_PINS];
 
 void debugShowVisibleScreen() {
-#if defined(DEBUG)
+#if defined(LOCAL_DEBUG)
   for (int row = 0; row < CLOCK_ROWS; row++) {
     for (int col = 0; col < CLOCK_COLUMNS; col++) {
       Serial.print(visible_screen[row][col] ? "▓▓" : "  ");
@@ -130,7 +198,7 @@ void debugShowVisibleScreen() {
 };
 
 void debugShowInternalData() {
-#if defined(DEBUG)
+#if defined(LOCAL_DEBUG)
   for (int segment = 0; segment < PHYSICAL_SEGMENT_PINS; segment++) {
     Serial.printf("Segment (row) %d: ", segment);
     for (int digit = 0; digit < PHYSICAL_DIGIT_PINS; digit++) {
@@ -352,6 +420,7 @@ void setup() {
   logResetReason();
 
   displayBootSequenceId(BOOT_SEQUENCE_OTA_SETUP);
+  logResetReason();  // FIXME test
   ArduinoOTA.setHostname(HOSTNAME);
   ArduinoOTA.begin();
   ArduinoOTA.onStart([]() {

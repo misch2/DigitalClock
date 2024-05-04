@@ -1,11 +1,8 @@
-#ifdef DEBUG
-  #ifdef SYSLOG_SERVER
+#if !defined(LOCAL_DEBUG_H)
+  #define LOCAL_DEBUG_H
 
-// A UDP instance to let us send and receive packets over UDP
-WiFiUDP udpClient;
-// Create a new syslog instance with LOG_KERN facility
-Syslog syslog(udpClient, SYSLOG_SERVER, SYSLOG_PORT, SYSLOG_MYHOSTNAME, SYSLOG_MYAPPNAME, LOG_KERN);
-    #ifndef DEBUG_PRINT
+  #if defined(LOCAL_DEBUG)
+    #if defined(SYSLOG_SERVER)
       #define DEBUG_PRINT(...)                                \
         Serial.printf(__VA_ARGS__);                           \
         Serial.print('\n');                                   \
@@ -21,17 +18,13 @@ Syslog syslog(udpClient, SYSLOG_SERVER, SYSLOG_PORT, SYSLOG_MYHOSTNAME, SYSLOG_M
         } else {                                              \
           Serial.println(" (no syslog, WiFi not connected)"); \
         }
+    #else
+      #define DEBUG_PRINT(...)      \
+        Serial.printf(__VA_ARGS__); \
+        Serial.print('\n')
     #endif
   #else
-    #define DEBUG_PRINT(...)      \
-      Serial.printf(__VA_ARGS__); \
-      Serial.print('\n')
+    #define DEBUG_PRINT(...)
+    #error FIXME
   #endif
-#else
-  #define DEBUG_PRINT(...)
-  #error FIXME
 #endif
-
-// WiFi is connected now => all messages go to syslog too.
-// But FIXME, first few UDP packets are not sent:  //  [
-// 1113][E][WiFiUdp.cpp:183] endPacket(): could not send data: 12

@@ -10,7 +10,7 @@
   #include <esp_sntp.h>
   #include <esp_task_wdt.h>
 #elif defined(ESP8266)
-  // see https://github.com/esp8266/Arduino
+  // see https://arduino-esp8266.readthedocs.io/en/latest/ for libraries reference
   #include <ESP8266WiFi.h>
 #else
   #error "Unsupported platform"
@@ -42,7 +42,7 @@
 // MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, SPI1, CS_PIN, MAX_DEVICES);
 // Arbitrary pins (bit banged SPI, no problem with low speed devices like MAX72xx)
 // MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, DATA_PIN, CLK_PIN, CS_PIN, MAX_DEVICES);
-#ifdef ESP32
+#if defined(ESP32)
   #define DATA_PIN 9
   #define CS_PIN 10
   #define CLK_PIN 11
@@ -109,7 +109,7 @@ uint8_t visible_screen[CLOCK_ROWS][CLOCK_COLUMNS];
 uint8_t internal_buffer[PHYSICAL_SEGMENT_PINS][PHYSICAL_DIGIT_PINS];
 
 void debugShowVisibleScreen() {
-#ifdef DEBUG
+#if defined(DEBUG)
   for (int row = 0; row < CLOCK_ROWS; row++) {
     for (int col = 0; col < CLOCK_COLUMNS; col++) {
       Serial.print(visible_screen[row][col] ? "▓▓" : "  ");
@@ -124,7 +124,7 @@ void debugShowVisibleScreen() {
 };
 
 void debugShowInternalData() {
-#ifdef DEBUG
+#if defined(DEBUG)
   for (int segment = 0; segment < PHYSICAL_SEGMENT_PINS; segment++) {
     Serial.printf("Segment (row) %d: ", segment);
     for (int digit = 0; digit < PHYSICAL_DIGIT_PINS; digit++) {
@@ -354,7 +354,7 @@ void setup() {
   DEBUG_PRINT("Starting NTP sync...");
   configTzTime(TIMEZONE, NTP_SERVER);
 
-#ifdef ESP32
+#if defined(ESP32)
   sntp_set_time_sync_notification_cb(cbSyncTime);
 #else
   settimeofday_cb(cbSyncTimeESP8266);

@@ -3,7 +3,7 @@
 #include "debug.h"
 
 void wdtInit() {
-#ifdef USE_WDT
+#if defined(USE_WDT)
   DEBUG_PRINT("Configuring WDT for %d seconds", WDT_TIMEOUT);
   esp_task_wdt_init(WDT_TIMEOUT, true);  // enable panic so ESP32 restarts
   esp_task_wdt_add(NULL);                // add current thread to WDT watch
@@ -11,20 +11,20 @@ void wdtInit() {
 }
 
 void wdtRefresh() {
-#ifdef USE_WDT
+#if defined(USE_WDT)
   // TRACE_PRINT("(WDT ping)");
   esp_task_wdt_reset();
 #endif
 }
 
 void wdtStop() {
-#ifdef USE_WDT
+#if defined(USE_WDT)
   DEBUG_PRINT("Stopping WDT...");
   esp_task_wdt_deinit();
 #endif
 }
 
-#ifdef ESP32
+#if defined(ESP32)
 String resetReasonAsString() {
   esp_reset_reason_t reset_reason = esp_reset_reason();
   if (reset_reason == ESP_RST_UNKNOWN) {
@@ -71,11 +71,13 @@ String wakeupReasonAsString() {
 #endif
 
 void logResetReason() {
-#ifdef ESP32
+#if defined(ESP32)
   DEBUG_PRINT("Reset reason: %s", resetReasonAsString());
   String wr = wakeupReasonAsString();
   if (wr != "UNDEFINED") {
     DEBUG_PRINT("Wakeup reason: %s", wr);
   };
+#elif defined(ESP8266)
+  DEBUG_PRINT("Reset reason: %d", ESP.getResetReason());
 #endif
 };

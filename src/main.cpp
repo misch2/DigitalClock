@@ -420,7 +420,6 @@ void setup() {
   logResetReason();
 
   displayBootSequenceId(BOOT_SEQUENCE_OTA_SETUP);
-  logResetReason();  // FIXME test
   ArduinoOTA.setHostname(HOSTNAME);
   ArduinoOTA.begin();
   ArduinoOTA.onStart([]() {
@@ -437,6 +436,7 @@ void setup() {
   outOfSyncTimer.start();
   displayNotSyncedYet();
 
+  DEBUG_PRINT("SW version: %s", VERSION);
   DEBUG_PRINT("Timezone: %s", TIMEZONE);
   DEBUG_PRINT("NTP server: %s", NTP_SERVER);
   DEBUG_PRINT("Starting NTP sync...");
@@ -463,11 +463,12 @@ void loop() {
     wdtRefresh();
     time_t curTime = mktime(&rtcTime);
     if (lastTime != curTime) {
-      displayTime(rtcTime, true);
-
       lastTime = curTime;
       if (timeSyncedToNTP) {
+        displayTime(rtcTime, true);
         blinkingDotsIndicator.start();
+      } else {
+        displayTime(rtcTime, false);
       };
     };
     if (blinkingDotsIndicator.expired()) {

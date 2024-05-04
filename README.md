@@ -22,7 +22,7 @@ TODO add a documentation for splitting the original PCB wiring into 2 halves.
 
 # Software
 
-Most of the code just handles mapping the logical pixels to the right values for MAX7219 ICs. And I used a built in library functions to fetch time from NTP.
+Software is not very complicated. Most of it just deals with mapping logical pixels to digit+segment values for MAX7219 ICs. I didn't want to play "reinvent the wheel" game so I used either built in or library functions for most of the generic tasks (like fetching the time from NTP or communicating with the display).
 
 ## Display content
 

@@ -29,7 +29,7 @@ Most of the code just handles mapping the logical pixels to the right values for
 * `88:88:88` in full brightness
     Booting, display selftest.
 
-* `WI⠀FI⠀⠀⠀`
+* `WIFI⠀⠀⠀`
     Booting, connecting to WiFi.
 
 * `--⠀--⠀--`
@@ -41,10 +41,10 @@ Most of the code just handles mapping the logical pixels to the right values for
 * Clock without blinking colons
     Running from local time source, time has been unsynchronized for more than 6 hours.
 
-* `OT⠀A⠀⠀00`
+* `OTA⠀00` up to `OTA100`
     OTA in progress (digits change from 00 % to 100 %)
 
-* `BO⠀OT⠀⠀⠀`
+* `BOOT⠀⠀`
     OTA finished, rebooting.
 
 ## Libraries used

@@ -1,3 +1,4 @@
+
 // external libraries first
 #include <Arduino.h>
 #include <ArduinoOTA.h>
@@ -21,7 +22,7 @@
 // clang-format off
 #define DEBUG
 #include "secrets.h"
-#include "debug.h"
+#include "local_debug.h"
 // clang-format on
 
 // then everything else
@@ -47,18 +48,23 @@
   #define CS_PIN 10
   #define CLK_PIN 11
 MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, DATA_PIN, CLK_PIN, CS_PIN, MAX_DEVICES);
-#else
+#elif defined(ESP8266)
   #define CS_PIN 15
 MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);
 #endif
 
-#define SECONDS_TO_MILLIS 1000
 #define MILLIS 1
+#define SECONDS_TO_MILLIS (1000 * MILLIS)
+#define MINUTES_TO_MILLIS (60 * SECONDS_TO_MILLIS)
+#define HOURS_TO_MILLIS (60 * MINUTES_TO_MILLIS)
 
 WiFiManager wifiManager;
 WiFiClient wifiClient;
-time_t lastTime;
+time_t lastTime = 0;
+
+bool timeSyncedToNTP = false;
 Timemark blinkingDotsIndicator(500 * MILLIS);
+Timemark outOfSyncTimer(6 * HOURS_TO_MILLIS);
 
 // Internal LED matrix:
 //
@@ -260,6 +266,12 @@ void displaySelftest() {
   mx.control(MD_MAX72XX::TEST, MD_MAX72XX::OFF);
 }
 
+#define BOOT_SEQUENCE_INITIALIZING 0
+#define BOOT_SEQUENCE_OTA_SETUP 1
+#define BOOT_SEQUENCE_FINISHED 2
+#define BOOT_SEQUENCE_OTA_FINISHED 8
+#define BOOT_SEQUENCE_OTA_IN_PROGRESS 9
+
 void displayBootSequenceId(int seq) {
   DEBUG_PRINT("Displaying boot sequence id %d", seq);
   clearScreen();
@@ -295,13 +307,17 @@ void displayTime(tm rtcTime, bool showDots) {
   };
 }
 
-void cbSyncTime(struct timeval *tv) {  // callback function to show when NTP was synchronized
+void cbSyncTimeESP32(struct timeval *tv) {  // callback function to show when NTP was synchronized
   DEBUG_PRINT("NTP time synchronized to %s", NTP_SERVER);
+  timeSyncedToNTP = true;
+  outOfSyncTimer.start();
 }
 
 void cbSyncTimeESP8266(bool from_sntp) {  // callback function to show when NTP was synchronized
   if (from_sntp) {
     DEBUG_PRINT("NTP time synchronized to %s", NTP_SERVER);
+    timeSyncedToNTP = true;
+    outOfSyncTimer.start();
   } else {
     DEBUG_PRINT("NTP time synchronized to local time");
   };
@@ -323,7 +339,7 @@ void setup() {
   DEBUG_PRINT("Display selftest");
   mx.control(MD_MAX72XX::INTENSITY, MAX_INTENSITY);
   displaySelftest();
-  displayBootSequenceId(0);
+  displayBootSequenceId(BOOT_SEQUENCE_INITIALIZING);
 
   wdtStop();
   wifiManager.setHostname(HOSTNAME);
@@ -331,38 +347,45 @@ void setup() {
   wifiManager.setConnectTimeout(15);            // 15 seconds
   wifiManager.setConfigPortalTimeout(10 * 60);  // Stay 10 minutes max in the AP web portal, then reboot
   wifiManager.autoConnect();
-  logResetReason();
   wdtInit();
 
-  displayBootSequenceId(1);
+  logResetReason();
+
+  displayBootSequenceId(BOOT_SEQUENCE_OTA_SETUP);
   ArduinoOTA.setHostname(HOSTNAME);
   ArduinoOTA.begin();
   ArduinoOTA.onStart([]() {
     DEBUG_PRINT("OTA Start");
+    displayBootSequenceId(BOOT_SEQUENCE_OTA_IN_PROGRESS);
     wdtStop();
   });
-  ArduinoOTA.onEnd([]() { DEBUG_PRINT("OTA End"); });
+  ArduinoOTA.onEnd([]() {
+    DEBUG_PRINT("OTA End");
+    displayBootSequenceId(BOOT_SEQUENCE_OTA_FINISHED);
+  });
 
-  displayBootSequenceId(2);
-  // test_blinking(mx);
-
+  displayBootSequenceId(BOOT_SEQUENCE_FINISHED);
+  outOfSyncTimer.start();
   displayNotSyncedYet();
 
-  lastTime = 0;
   DEBUG_PRINT("Timezone: %s", TIMEZONE);
   DEBUG_PRINT("NTP server: %s", NTP_SERVER);
   DEBUG_PRINT("Starting NTP sync...");
   configTzTime(TIMEZONE, NTP_SERVER);
 
 #if defined(ESP32)
-  sntp_set_time_sync_notification_cb(cbSyncTime);
-#else
+  sntp_set_time_sync_notification_cb(cbSyncTimeESP32);
+#elif defined(ESP8266)
   settimeofday_cb(cbSyncTimeESP8266);
 #endif
 }
 
 void loop() {
   ArduinoOTA.handle();
+
+  if (outOfSyncTimer.expired()) {
+    timeSyncedToNTP = false;
+  };
 
   tm rtcTime;
   // eventually WDT will reset the device if NTP sync takes too long
@@ -373,7 +396,9 @@ void loop() {
       displayTime(rtcTime, true);
 
       lastTime = curTime;
-      blinkingDotsIndicator.start();
+      if (timeSyncedToNTP) {
+        blinkingDotsIndicator.start();
+      };
     };
     if (blinkingDotsIndicator.expired()) {
       displayTime(rtcTime, false);

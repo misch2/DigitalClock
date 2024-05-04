@@ -24,6 +24,7 @@ void wdtStop() {
 #endif
 }
 
+#ifdef ESP32
 String resetReasonAsString() {
   esp_reset_reason_t reset_reason = esp_reset_reason();
   if (reset_reason == ESP_RST_UNKNOWN) {
@@ -46,9 +47,8 @@ String resetReasonAsString() {
     return "BROWNOUT";
   } else if (reset_reason == ESP_RST_SDIO) {
     return "SDIO";
-  } else {
-    return "? (" + String(reset_reason) + ")";
   }
+  return "? (" + String(reset_reason) + ")";
 };
 
 String wakeupReasonAsString() {
@@ -65,15 +65,17 @@ String wakeupReasonAsString() {
     return "TOUCHPAD";
   } else if (wakeup_reason == ESP_SLEEP_WAKEUP_ULP) {
     return "ULP";
-  } else {
-    return "? (" + String(wakeup_reason) + ")";
-  }
+  };
+  return "? (" + String(wakeup_reason) + ")";
 };
+#endif
 
 void logResetReason() {
+#ifdef ESP32
   DEBUG_PRINT("Reset reason: %s", resetReasonAsString());
   String wr = wakeupReasonAsString();
   if (wr != "UNDEFINED") {
     DEBUG_PRINT("Wakeup reason: %s", wr);
   };
+#endif
 };

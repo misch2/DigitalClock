@@ -18,13 +18,11 @@ My idea was to connect these LEDs to the MAX7219 ICs and add ESP32 or ESP8266 as
 This came out as a bit more complicated then I originally thought because while the MAX7219 can be daisy chained each IC can only control it's own matrix of 8x8 LEDs. In other words I couldn't use the original 16x6 matrix and I had to split it into 8x6 + 8x6.
 I used a sharp knife and some soldering to do this.
 
-TODO
+TODO add a documentation for splitting the original PCB wiring into 2 halves.
 
 # Software
 
 Most of the code just handles mapping the logical pixels to the right values for MAX7219 ICs. And I used a built in library functions to fetch time from NTP.
-
-After powering up the clock displays a short self test (all segments fully on), then "0" while it's connecting to WiFi, then "-- -- --" as it's waiting for a sync. Once it knows the time it just displays it like any other clock do.
 
 ## Display content
 

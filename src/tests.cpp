@@ -1,8 +1,7 @@
 #include <Arduino.h>
 #include <MD_MAX72xx.h>
 
-#include "debug.h"
-#include "utils.h"
+#include "main.h"
 
 void test_blinking(MD_MAX72XX mx)
 // Uses the test function of the MAX72xx to blink the display on and off.

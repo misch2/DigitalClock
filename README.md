@@ -5,7 +5,7 @@
 This is a simple personal HW+SW project. My goal here was to upgrade/fix an old JVD digital clock to automatically set time using NTP and to automatically adjust for DST. 
 
 Features:
- - NTP synchronized clock
+ - NTP synchronised clock
  - Automatic DST adjustment
  - Time based auto dimming
 
@@ -26,9 +26,29 @@ Most of the code just handles mapping the logical pixels to the right values for
 
 After powering up the clock displays a short self test (all segments fully on), then "0" while it's connecting to WiFi, then "-- -- --" as it's waiting for a sync. Once it knows the time it just displays it like any other clock do.
 
+## Display content
+
+* `88:88:88` in full brightness
+    Booting, display selftest.
+
+* `0       `
+    Booting, connecting to WiFi.
+
+* `1       `
+    Booting, WiFi connected, setting up OTA and NTP
+
+* `-- -- --`
+    Booting, waiting for the first NTP synchronisation.
+
+* Clock with blinking colons
+    Running from NTP, time is synchronised.
+
+* Clock without blinking colons
+    Running from local time source, time has been unsynchronised for more than 6 hours.
+
 ## Libraries used
 
-- MD_MAX72XX @ 3.1.5
-- WiFiManager @ latest (2.0.17)
-- Timemark @ 1.0.0
-- Syslog @ 2.0.0
+* MD_MAX72XX @ 3.1.5
+* WiFiManager @ latest (2.0.17)
+* Timemark @ 1.0.0
+* Syslog @ 2.0.0

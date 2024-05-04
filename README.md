@@ -5,7 +5,7 @@
 This is a simple personal HW+SW project. My goal here was to upgrade/fix an old JVD digital clock to automatically set time using NTP and to automatically adjust for DST. 
 
 Features:
- - NTP synchronised clock
+ - NTP synchronized clock
  - Automatic DST adjustment
  - Time based auto dimming
 
@@ -35,13 +35,13 @@ After powering up the clock displays a short self test (all segments fully on), 
     Booting, connecting to WiFi.
 
 * `--⠀--⠀--`
-    Booting, waiting for the first NTP synchronisation.
+    Booting, waiting for the first NTP synchronization.
 
 * Clock with blinking colons
-    Running from NTP, time is synchronised.
+    Running from NTP, time is synchronized.
 
 * Clock without blinking colons
-    Running from local time source, time has been unsynchronised for more than 6 hours.
+    Running from local time source, time has been unsynchronized for more than 6 hours.
 
 * `OT⠀A1⠀⠀⠀`
     OTA in progress.

@@ -46,7 +46,7 @@ After powering up the clock displays a short self test (all segments fully on), 
 * `OT⠀A⠀⠀00`
     OTA in progress (digits change from 00 % to 100 %)
 
-* `BO⠀OB⠀⠀⠀`
+* `BO⠀OT⠀⠀⠀`
     OTA finished, rebooting.
 
 ## Libraries used

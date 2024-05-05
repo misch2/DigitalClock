@@ -4,5 +4,6 @@
 .vscode/ipch
 .vscode/extensions.json
 .vscode/settings.json
-sw/.pio
+.pio
+sw/local
 sw/include/secrets.h

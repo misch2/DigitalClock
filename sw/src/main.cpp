@@ -7,7 +7,6 @@
 #if defined(ESP32)
   #include <WiFi.h>
   #include <esp_sntp.h>
-  #include <esp_task_wdt.h>
 #elif defined(ESP8266)
   // see https://arduino-esp8266.readthedocs.io/en/latest/ for libraries reference
   #include <ESP8266WiFi.h>
@@ -54,47 +53,11 @@ WiFiUDP udpClient;
 Syslog syslog(udpClient, SYSLOG_SERVER, SYSLOG_PORT, SYSLOG_MYHOSTNAME, SYSLOG_MYAPPNAME, LOG_KERN);
 #endif
 
-time_t lastTime = 0;
+time_t lastTimeSeconds = 0;
 
-bool timeSyncedToNTP = false;
-Timemark blinkingDotsIndicator(500 * MILLIS);
+bool timeIsSyncedToNTP = false;
+Timemark halfSecondIndicator(500 * MILLIS);
 Timemark outOfSyncTimer(6 * HOURS_TO_MILLIS);
-
-void wdtInit() {
-#if defined(USE_WDT)
-  DEBUG_PRINT("Configuring WDT for %d seconds", WDT_TIMEOUT);
-  #if defined(ESP32)
-  esp_task_wdt_init(WDT_TIMEOUT, true);
-  esp_task_wdt_add(NULL);
-  #elif defined(ESP8266)
-  ESP.wdtDisable();
-  ESP.wdtEnable(WDT_TIMEOUT * SECONDS_TO_MILLIS);
-  ESP.wdtFeed();
-  #endif
-#endif
-}
-
-void wdtRefresh() {
-#if defined(USE_WDT)
-  // TRACE_PRINT("(WDT ping)");
-  #if defined(ESP32)
-  esp_task_wdt_reset();
-  #elif defined(ESP8266)
-  ESP.wdtFeed();
-  #endif
-#endif
-}
-
-void wdtStop() {
-#if defined(USE_WDT)
-  DEBUG_PRINT("Stopping WDT...");
-  #if defined(ESP32)
-  esp_task_wdt_deinit();
-  #elif defined(ESP8266)
-  ESP.wdtDisable();
-  #endif
-#endif
-}
 
 #if defined(ESP32)
 String resetReasonAsString() {
@@ -121,34 +84,12 @@ String resetReasonAsString() {
     return "SDIO";
   }
   return "? (" + String(reset_reason) + ")";
-}
-
-String wakeupReasonAsString() {
-  esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
-  if (wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED) {
-    return "UNDEFINED";
-  } else if (wakeup_reason == ESP_SLEEP_WAKEUP_EXT0) {
-    return "EXT0";
-  } else if (wakeup_reason == ESP_SLEEP_WAKEUP_EXT1) {
-    return "EXT1";
-  } else if (wakeup_reason == ESP_SLEEP_WAKEUP_TIMER) {
-    return "TIMER";
-  } else if (wakeup_reason == ESP_SLEEP_WAKEUP_TOUCHPAD) {
-    return "TOUCHPAD";
-  } else if (wakeup_reason == ESP_SLEEP_WAKEUP_ULP) {
-    return "ULP";
-  };
-  return "? (" + String(wakeup_reason) + ")";
-}
+};
 #endif
 
 void logResetReason() {
 #if defined(ESP32)
   DEBUG_PRINT("Reset reason: %s", resetReasonAsString());
-  String wr = wakeupReasonAsString();
-  if (wr != "UNDEFINED") {
-    DEBUG_PRINT("Wakeup reason: %s", wr);
-  };
 #elif defined(ESP8266)
   DEBUG_PRINT("Reset reason: %s", ESP.getResetReason().c_str());
 #endif
@@ -435,14 +376,14 @@ void displayTime(tm rtcTime, bool showDots) {
 
 void cbSyncTimeESP32(struct timeval *tv) {  // callback function to show when NTP was synchronized
   DEBUG_PRINT("NTP time synchronized to %s", NTP_SERVER);
-  timeSyncedToNTP = true;
+  timeIsSyncedToNTP = true;
   outOfSyncTimer.start();
 }
 
 void cbSyncTimeESP8266(bool from_sntp) {  // callback function to show when NTP was synchronized
   if (from_sntp) {
     DEBUG_PRINT("NTP time synchronized to %s", NTP_SERVER);
-    timeSyncedToNTP = true;
+    timeIsSyncedToNTP = true;
     outOfSyncTimer.start();
   } else {
     DEBUG_PRINT("NTP time synchronized to local time");
@@ -452,14 +393,12 @@ void cbSyncTimeESP8266(bool from_sntp) {  // callback function to show when NTP 
 void setup() {
   Serial.begin(115200); /* prepare for possible serial debug */
   Serial.println("Starting...");
-  wdtInit();
 
   DEBUG_PRINT("Initializing MD_MAX72XX");
   if (!mx.begin()) {
     DEBUG_PRINT("MD_MAX72XX initialization failed");
-    // halt the program (until WDT resets it)
-    while (1) {
-    };
+    // halt the program
+    while (1) delay(1000);
   };
 
   DEBUG_PRINT("Display selftest");
@@ -467,13 +406,11 @@ void setup() {
   displaySelftest();
   displayTextWiFi();
 
-  wdtStop();
   wifiManager.setHostname(HOSTNAME);
   wifiManager.setConnectRetries(3);
   wifiManager.setConnectTimeout(15);            // 15 seconds
   wifiManager.setConfigPortalTimeout(10 * 60);  // Stay 10 minutes max in the AP web portal, then reboot
   wifiManager.autoConnect();
-  wdtInit();
 
   logResetReason();
 
@@ -482,7 +419,6 @@ void setup() {
   ArduinoOTA.onStart([]() {
     DEBUG_PRINT("OTA Start");
     displayTextOTA(0);
-    wdtStop();
   });
   ArduinoOTA.onEnd([]() {
     DEBUG_PRINT("OTA End");
@@ -514,28 +450,26 @@ void loop() {
   ArduinoOTA.handle();
 
   if (outOfSyncTimer.expired()) {
-    timeSyncedToNTP = false;
+    timeIsSyncedToNTP = false;
     DEBUG_PRINT("NTP time out of sync");
   };
 
   tm rtcTime;
-  // eventually WDT will reset the device if NTP sync takes too long
   if (getLocalTime(&rtcTime)) {
-    wdtRefresh();
-    time_t curTime = mktime(&rtcTime);
-    if (lastTime != curTime) {
-      lastTime = curTime;
-      if (timeSyncedToNTP) {
+    time_t curTimeSeconds = mktime(&rtcTime);
+    if (lastTimeSeconds != curTimeSeconds) {  // every start of a new second
+      lastTimeSeconds = curTimeSeconds;
+      if (timeIsSyncedToNTP) {
         displayTime(rtcTime, true);
-        blinkingDotsIndicator.start();
+        halfSecondIndicator.start();
       } else {
+        // display time but without blinking dots
         displayTime(rtcTime, false);
       };
     };
-    if (blinkingDotsIndicator.expired()) {
-      displayTime(rtcTime, false);
-    };
   };
 
-  delay(5 * MILLIS);
+  if (halfSecondIndicator.expired()) {
+    displayTime(rtcTime, false);
+  };
 }

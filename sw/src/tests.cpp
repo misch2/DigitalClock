@@ -18,7 +18,6 @@ void test_blinking(MD_MAX72XX mx)
     delay(nDelay);
 
     nDelay -= 500;
-    wdtRefresh();
   }
 
   mx.control(0, MD_MAX72XX::TEST, MD_MAX72XX::ON);

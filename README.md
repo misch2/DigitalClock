@@ -2,23 +2,21 @@
 
 # Digital clock rework
 
-This is a simple personal HW+SW project. My goal here was to upgrade/fix an old JVD digital clock to automatically set time using NTP and to automatically adjust for DST. 
+This is a simple personal HW+SW project. My goal here was to upgrade an old JVD digital clock to automatically set the time using NTP and automatically adjust to daylight saving time. As a side effect I changed the power supply from the original 6V to a standard USB-C 5V.
 
 Features:
- - NTP synchronized clock
- - Automatic DST adjustment
- - Time based auto dimming
+ - Clock synchronized with NTP
+ - Automatic daylight saving time adjustment
+ - Automatic dimming based on time of the day
 
-I decided to completely remove the old electronic board and replace it with a new one. While this meant that I'll lose some of the functions like alarm, temperature monitoring or gestures control, it wasn't an issue for me because I hadn't used any of this for several years.
-So the goal was to get a "turn on and forget"-style digital clock.
+I decided to completely remove the old electronic board and replace it with a new one. While this meant losing some features such as the alarm clock, temperature monitoring, and gesture controls, it wasn't a problem for me because I hadn't used any of these for several years. The goal was just to get an on-and-forget style digital clock that wouldn't need to be constantly adjusted.
 
 There was an 20x5 white LED matrix (with some empty positions) inside connected to a 16 (virtual columns) + 6 pin (virtual rows) header.
 My idea was to connect these LEDs to the MAX7219 ICs and add ESP32 or ESP8266 as a controller and as a time source. 
 
-This came out as a bit more complicated then I originally thought because while the MAX7219 can be daisy chained each IC can only control it's own matrix of 8x8 LEDs. In other words I couldn't use the original 16x6 matrix and I had to split it into 8x6 + 8x6.
-I used a sharp knife and some soldering to accomplish this. The original PCB doesn't route the rows and columns in the most logical way so it was necessary to add some wire bridges and it's not very elegant. But it works!
+This turned out to be a bit more complicated than I originally thought because while the MAX7219 can be daisy chained, each IC can only control its own matrix of 8x8 LEDs. In other words, I couldn't use the original 16x6 LED matrix and had to explicitly split it into two independent 8x6+8x6 matrixes. I used a sharp knife and some soldering to do this. Unfortunately the original circuit board didn't route the rows and columns in the most logical way, so some wire bridges had to be added and it's not very elegant in the end. But it works.
 
-TODO add a documentation for splitting the original PCB wiring into 2 halves.
+TODO add a documentation (photo?) of splitting the original PCB wiring into 2 halves.
 
 # Software
 

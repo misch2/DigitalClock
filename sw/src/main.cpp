@@ -372,6 +372,7 @@ void displayNotSyncedYet() {
   sendScreenToDevice();
 }
 
+int last_intensity = -1;
 void displayTime(tm rtcTime, bool showDots) {
   clearScreen();
   drawTime(rtcTime);
@@ -396,7 +397,10 @@ void displayTime(tm rtcTime, bool showDots) {
   // Negative degrees value is used to set the minimal brightness only when the sun is below the horizon:
   int intensity = map(elevation, -10, 90, 0, MAX_INTENSITY);
   mx.control(MD_MAX72XX::INTENSITY, intensity);
-  // DEBUG_PRINT("Elevation: %f -> intensity %d", elevation, intensity);
+  if (intensity != last_intensity) {
+    DEBUG_PRINT("Sun elevation: %.1f deg -> intensity %d", elevation, intensity);
+    last_intensity = intensity;
+  }
 }
 
 void cbSyncTimeESP32(struct timeval *tv) {  // callback function to show when NTP was synchronized

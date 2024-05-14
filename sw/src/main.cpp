@@ -2,6 +2,7 @@
 #include <ArduinoOTA.h>
 #include <MD_MAX72xx.h>
 // #include <SPI.h>
+#include <SolarCalculator.h>
 #include <Syslog.h>
 #include <Timemark.h>
 #if defined(ESP32)
@@ -25,6 +26,8 @@
 
 #define TIMEZONE "CET-1CEST,M3.5.0,M10.5.0/3"  // Europe/Prague
 #define NTP_SERVER "cz.pool.ntp.org"
+double latitude = 49.0;
+double longitude = 16.0;
 
 // hardware configuration
 #define HARDWARE_TYPE MD_MAX72XX::DR0CR0RR0_HW
@@ -134,21 +137,14 @@ int map_visible_to_internal_cords[CLOCK_ROWS][CLOCK_COLUMNS] = {
 
 // But the internal wiring is not as simple as that. The MAX7219 has 8 pins for the "digits" and 8 pins for the "segments". So the wiring is split between these
 // two ICs and each of them takes care of a single 8x6 matrix. For easier debugging of the "birds nest" of wires, we can remap each output pin:
-
 int digit_pins_to_internal[8 * MAX_DEVICES] = {
-    // IC 1
-    7, 6, 5, 4, 3, 2, 1, 0,
-
-    // IC 2
-    8, 9, 10, 11, 12, 13, 14, 15
+    7, 6, 5, 4, 3, 2, 1, 0,       // IC1
+    8, 9, 10, 11, 12, 13, 14, 15  // IC2
 };
 
 int segment_pins_to_internal[8 * MAX_DEVICES] = {
-    // IC 1
-    1, 6, 4, 5, 3, 2, /* not connected: */ 7, 0,
-
-    // IC 2
-    6, 5, 4, 3, 2, 1, /* not connected: */ 7, 0
+    1, 6, 4, 5, 3, 2, /* not connected: */ 7, 0,  // IC1
+    6, 5, 4, 3, 2, 1, /* not connected: */ 7, 0   // IC2
 };
 // clang-format on
 
@@ -294,7 +290,9 @@ void drawMinusSign(int pos) { drawSymbol(FONT_CHAR_MINUS_OFFSET, pos); };
 void drawTime(tm rtcTime) {
   // Serial.printf("Displaying RTC time: %02d:%02d:%02d\n", rtcTime.tm_hour, rtcTime.tm_min, rtcTime.tm_sec);
 
+  // if (rtcTime.tm_hour >= 10) {  // do not display leading zero for hours
   drawSymbol(FONT_DIGITS_OFFSET + rtcTime.tm_hour / 10, POSITION_DIGIT1);
+  // }
   drawSymbol(FONT_DIGITS_OFFSET + rtcTime.tm_hour % 10, POSITION_DIGIT2);
   drawSymbol(FONT_DIGITS_OFFSET + rtcTime.tm_min / 10, POSITION_DIGIT3);
   drawSymbol(FONT_DIGITS_OFFSET + rtcTime.tm_min % 10, POSITION_DIGIT4);
@@ -380,13 +378,25 @@ void displayTime(tm rtcTime, bool showDots) {
   drawColons(showDots);
   sendScreenToDevice();
 
-  if (rtcTime.tm_hour >= 22 || rtcTime.tm_hour <= 5) {
-    mx.control(MD_MAX72XX::INTENSITY, 0);
-  } else if (rtcTime.tm_hour >= 20 || rtcTime.tm_hour <= 7) {
-    mx.control(MD_MAX72XX::INTENSITY, 3);
-  } else {
-    mx.control(MD_MAX72XX::INTENSITY, 7);
-  };
+  time_t utcTime = mktime(&rtcTime);
+  double azimuth, elevation;
+  calcHorizontalCoordinates(utcTime, latitude, longitude, azimuth, elevation);
+  // DEBUG_PRINT("Azimuth: %f, Elevation: %f", azimuth, elevation);
+  // DEBUG_PRINT("UTC Time: %lld", utcTime);
+
+  // // TODO use a light sensor or a sun position calculation to adjust the intensity
+  // if (rtcTime.tm_hour >= 22 || rtcTime.tm_hour <= 5) {
+  //   mx.control(MD_MAX72XX::INTENSITY, 0);
+  // } else if (rtcTime.tm_hour >= 20 || rtcTime.tm_hour <= 7) {
+  //   mx.control(MD_MAX72XX::INTENSITY, 3);
+  // } else {
+  //   mx.control(MD_MAX72XX::INTENSITY, 7);
+  // };
+
+  // Negative degrees value is used to set the minimal brightness only when the sun is below the horizon:
+  int intensity = map(elevation, -10, 90, 0, MAX_INTENSITY);
+  mx.control(MD_MAX72XX::INTENSITY, intensity);
+  // DEBUG_PRINT("Elevation: %f -> intensity %d", elevation, intensity);
 }
 
 void cbSyncTimeESP32(struct timeval *tv) {  // callback function to show when NTP was synchronized

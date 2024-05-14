@@ -138,15 +138,18 @@ int map_visible_to_internal_cords[CLOCK_ROWS][CLOCK_COLUMNS] = {
 int digit_pins_to_internal[8 * MAX_DEVICES] = {
     // IC 1
     7, 6, 5, 4, 3, 2, 1, 0,
+
     // IC 2
-    15, 14, 13, 12, 11, 10, 9, 8
-    };
+    8, 9, 10, 11, 12, 13, 14, 15
+};
 
 int segment_pins_to_internal[8 * MAX_DEVICES] = {
     // IC 1
-    0, 1, 2, 3, 4, 5, 6, 7,
+    1, 6, 4, 5, 3, 2, /* not connected: */ 7, 0,
+
     // IC 2
-    0, 1, 2, 3, 4, 5, 6, 7};
+    6, 5, 4, 3, 2, 1, /* not connected: */ 7, 0
+};
 // clang-format on
 
 uint8_t visible_screen[CLOCK_ROWS][CLOCK_COLUMNS];
@@ -311,6 +314,18 @@ void displaySelftest() {
   mx.control(MD_MAX72XX::TEST, MD_MAX72XX::ON);
   delay(1000);
   mx.control(MD_MAX72XX::TEST, MD_MAX72XX::OFF);
+
+  // for (int i = 0; i <= 9; i++) {
+  //   clearScreen();
+  //   drawSymbol(FONT_DIGITS_OFFSET + i, POSITION_DIGIT1);
+  //   drawSymbol(FONT_DIGITS_OFFSET + i, POSITION_DIGIT2);
+  //   drawSymbol(FONT_DIGITS_OFFSET + i, POSITION_DIGIT3);
+  //   drawSymbol(FONT_DIGITS_OFFSET + i, POSITION_DIGIT4);
+  //   drawSymbol(FONT_DIGITS_OFFSET + i, POSITION_DIGIT5);
+  //   drawSymbol(FONT_DIGITS_OFFSET + i, POSITION_DIGIT6);
+  //   sendScreenToDevice();
+  //   delay(200);
+  // }
 }
 
 void displayTextBoot() {
@@ -390,6 +405,92 @@ void cbSyncTimeESP8266(bool from_sntp) {  // callback function to show when NTP 
   };
 }
 
+void setupHelperForPinsAndSegments() {
+  DEBUG_PRINT("Setting up pins and segments");
+
+  Serial.println("All segments lit, identifying digits 0-15");
+  mx.control(MD_MAX72XX::INTENSITY, 0);
+  for (int i = 0; i < PHYSICAL_DIGIT_PINS; i++) {
+    Serial.printf("Logical digit %d\n", i);
+    mx.clear();
+    mx.setColumn(digit_pins_to_internal[i], 0b11111111);
+    delay(100);
+  }
+
+  Serial.println("All digits lit, identifying segments 0-7");
+  // for (int device = 0; device < MAX_DEVICES; device++) {
+  for (int device = 0; device < MAX_DEVICES - 1; device++) {
+    for (int i = 0; i < PHYSICAL_SEGMENT_PINS; i++) {
+      Serial.printf("Device %d segment %d\n", device, i);
+      mx.clear();
+      if (device == 0) {
+        mx.setRow(device, segment_pins_to_internal[i], 0b11111111);
+      } else {
+        mx.setRow(device, segment_pins_to_internal[i + 8], 0b11111111);
+      };
+      delay(1000);
+    }
+  }
+}
+
+void setupHelperForSegments() {
+  DEBUG_PRINT("Setting up segments on block A");
+
+  for (int seg0 = 1; seg0 <= 6; seg0 += 4) {
+    for (int seg1 = 6; seg1 <= 6; seg1++) {
+      if (seg0 == seg1) {
+        continue;
+      }
+      for (int seg2 = 4; seg2 <= 5; seg2++) {
+        if (seg0 == seg2 || seg1 == seg2) {
+          continue;
+        }
+        for (int seg3 = 1; seg3 <= 6; seg3++) {
+          if (seg0 == seg3 || seg1 == seg3 || seg2 == seg3) {
+            continue;
+          }
+          for (int seg4 = 1; seg4 <= 6; seg4++) {
+            if (seg0 == seg4 || seg1 == seg4 || seg2 == seg4 || seg3 == seg4) {
+              continue;
+            }
+            for (int seg5 = 1; seg5 <= 6; seg5++) {
+              if (seg0 == seg5 || seg1 == seg5 || seg2 == seg5 || seg3 == seg5 || seg4 == seg5) {
+                continue;
+              }
+              segment_pins_to_internal[0] = seg0;
+              segment_pins_to_internal[1] = seg1;
+              segment_pins_to_internal[2] = seg2;
+              segment_pins_to_internal[3] = seg3;
+              segment_pins_to_internal[4] = seg4;
+              segment_pins_to_internal[5] = seg5;
+
+              // valid combos:
+              // 1, 6, 4, 2, 3, 5  : NE
+              // 1, 6, 4, 5, 3, 2
+              // 2, 6, 4, 5, 3, 1  : NE
+              // 6, 5, 4, 2, 3, 1
+
+              // 1, 6, 5, ?? 2, 3, 4 ???
+              // 5, 6, 4, ???
+
+              // 1, 6, 4, 5, 3, 2  akosor
+              // 5, 6, 4,
+
+              Serial.printf("[2345] Mapping: %d, %d, %d, %d, %d, %d\n", seg0, seg1, seg2, seg3, seg4, seg5);
+              clearScreen();
+              drawSymbol(FONT_DIGITS_OFFSET + 4, POSITION_DIGIT1);
+              drawSymbol(FONT_DIGITS_OFFSET + 7, POSITION_DIGIT2);
+              drawColons(true);
+              sendScreenToDevice();
+              delay(2000);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 void setup() {
   Serial.begin(115200); /* prepare for possible serial debug */
   Serial.println("Starting...");
@@ -400,6 +501,12 @@ void setup() {
     // halt the program
     while (1) delay(1000);
   };
+
+  // // // FIXME
+  // while (1) {
+  //   setupHelperForPinsAndSegments();
+  // }
+  // setupHelperForSegments();
 
   DEBUG_PRINT("Display selftest");
   mx.control(MD_MAX72XX::INTENSITY, MAX_INTENSITY);

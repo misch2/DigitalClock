@@ -9,4 +9,3 @@
 #define SYSLOG_PORT 514
 #define SYSLOG_MYAPPNAME "clock"
 #define SYSLOG_MYHOSTNAME HOSTNAME
-

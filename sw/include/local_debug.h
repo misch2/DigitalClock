@@ -1,6 +1,9 @@
 #if !defined(LOCAL_DEBUG_H)
   #define LOCAL_DEBUG_H
 
+// make the global variables from main.cpp visible
+extern Syslog syslog;
+
   #if defined(LOCAL_DEBUG)
     #if defined(SYSLOG_SERVER)
       #define DEBUG_PRINT(...)                                \

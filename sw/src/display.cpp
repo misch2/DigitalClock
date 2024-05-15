@@ -196,13 +196,14 @@ void setAutoIntensity(tm rtcTime) {
   //   mx.control(MD_MAX72XX::INTENSITY, 7);
   // };
 
-  // Make it non-linear to better match the real light intensity
-  double elevation_sine = sin(elevation * DEG_TO_RAD);
   // Negative degrees value is used to set the minimal brightness only when the sun is below the horizon:
-  int intensity = map(elevation_sine, ceil(-0.1 * 100000), ceil(0.5 * 100000), 0, MAX_INTENSITY);  // map(...) expects longs only
+  int intensity = map(constrain(elevation, ELEVATION_FOR_MIN_INTENSITY, ELEVATION_FOR_MAX_INTENSITY),  // value needs to be capped!
+                      ELEVATION_FOR_MIN_INTENSITY, ELEVATION_FOR_MAX_INTENSITY,                        // map from
+                      ELEVATION_BASED_INTENSITY_MIN, ELEVATION_BASED_INTENSITY_MAX                     // map to
+  );
   mx.control(MD_MAX72XX::INTENSITY, intensity);
   if (intensity != last_intensity) {
-    DEBUG_PRINT("Sun elevation: %.1f deg (sin=%.2f) -> intensity %d", elevation, elevation_sine, intensity);
+    DEBUG_PRINT("Sun elevation: %.1f deg -> intensity %d", elevation, intensity);
     last_intensity = intensity;
   }
 }

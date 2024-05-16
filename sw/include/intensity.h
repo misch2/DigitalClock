@@ -1,6 +1,4 @@
-#include <Arduino.h>
-
-#include "externs.h"
+#include "common/externs.h"
 
 #define ELEVATION_FOR_MIN_INTENSITY -5
 #define ELEVATION_FOR_MAX_INTENSITY 90

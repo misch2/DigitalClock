@@ -28,4 +28,3 @@
 extern int map_visible_to_internal_cords[CLOCK_ROWS][CLOCK_COLUMNS];
 extern int digit_pins_to_internal[];
 extern int segment_pins_to_internal[];
-

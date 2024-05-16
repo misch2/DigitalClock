@@ -1,4 +1,4 @@
-#include "externs.h"
+#include "common/externs.h"
 
 #if !defined(LOCAL_DEBUG_H)
   #define LOCAL_DEBUG_H

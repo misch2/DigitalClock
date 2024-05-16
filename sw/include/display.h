@@ -1,7 +1,5 @@
-#include <Arduino.h>
-
+#include "common/externs.h"
 #include "display_layout.h"
-#include "externs.h"
 
 void debugShowVisibleScreen();
 void debugShowInternalData();

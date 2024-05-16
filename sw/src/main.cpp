@@ -1,32 +1,24 @@
-#include <Arduino.h>
+// clang-format off
+#define LOCAL_DEBUG
+#include "common/prolog.h"
+// clang-format on
+
 #include <ArduinoOTA.h>
 #include <MD_MAX72xx.h>
 // #include <SPI.h>
-#include <Syslog.h>
 #include <Timemark.h>
-#if defined(ESP32)
-  #include <WiFi.h>
-  #include <esp_sntp.h>
-#elif defined(ESP8266)
-  // see https://arduino-esp8266.readthedocs.io/en/latest/ for libraries reference
-  #include <ESP8266WiFi.h>
-#else
-  #error "Unsupported platform"
-#endif
 #include <WiFiManager.h>
-
-// clang-format off
-#define LOCAL_DEBUG
-#include "secrets.h"
-#include "local_debug.h"
-#include "main.h"
-#include "tests.h"
-// clang-format on
 
 #include "display.h"
 #include "display_layout.h"
 #include "draw.h"
+#include "main.h"
+#include "tests.h"
 #include "utils.h"
+
+#if defined(ESP32)
+  #include <esp_sntp.h>
+#endif
 
 // hardware configuration
 #define HARDWARE_TYPE MD_MAX72XX::DR0CR0RR0_HW

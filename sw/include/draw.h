@@ -1,7 +1,7 @@
 #include <Arduino.h>
 
+#include "common/externs.h"
 #include "display_layout.h"
-#include "externs.h"
 
 extern uint8_t visible_screen[CLOCK_ROWS][CLOCK_COLUMNS];
 

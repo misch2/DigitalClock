@@ -1,3 +1,8 @@
+// clang-format off
+#define LOCAL_DEBUG
+#include "common/prolog.h"
+// clang-format on
+
 #include "display_layout.h"
 
 // Mapping of clock pixels to the internal wiring.

@@ -1,9 +1,11 @@
-#include <Arduino.h>
-#include <MD_MAX72xx.h>
+// clang-format off
+#define LOCAL_DEBUG
+#include "common/prolog.h"
+// clang-format on
 
-#include "main.h"
+#include "tests.h"
 
-void test_blinking(MD_MAX72XX mx)
+void test_blinking()
 // Uses the test function of the MAX72xx to blink the display on and off.
 {
   int nDelay = 1000;

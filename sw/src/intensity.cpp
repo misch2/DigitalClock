@@ -1,20 +1,11 @@
-#include <Arduino.h>
-#include <SolarCalculator.h>
-#if defined(ESP32)
-  #include <WiFi.h>
-#elif defined(ESP8266)
-  #include <ESP8266WiFi.h>
-#else
-  #error "Unsupported platform"
-#endif
-
 // clang-format off
 #define LOCAL_DEBUG
-#include "secrets.h"
-#include "local_debug.h"
+#include "common/prolog.h"
 // clang-format on
 
 #include "intensity.h"
+
+#include <SolarCalculator.h>
 
 int last_intensity = -1;
 void setAutoIntensity(tm rtcTime) {

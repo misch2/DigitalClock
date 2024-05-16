@@ -6,4 +6,4 @@
 .vscode/settings.json
 .pio
 sw/local
-sw/include/secrets.h
+sw/include/common/secrets.h

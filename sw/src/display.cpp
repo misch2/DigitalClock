@@ -1,22 +1,14 @@
-#include <Arduino.h>
-#include <Syslog.h>
-#if defined(ESP32)
-  #include <WiFi.h>
-#elif defined(ESP8266)
-  #include <ESP8266WiFi.h>
-#else
-  #error "Unsupported platform"
-#endif
-
 // clang-format off
 #define LOCAL_DEBUG
-#include "secrets.h"
-#include "local_debug.h"
+#include "common/prolog.h"
 // clang-format on
 
 #include "display.h"
-#include "intensity.h"
+
+#include <Syslog.h>
+
 #include "draw.h"
+#include "intensity.h"
 
 uint8_t visible_screen[CLOCK_ROWS][CLOCK_COLUMNS];
 uint8_t internal_buffer[PHYSICAL_SEGMENT_PINS][PHYSICAL_DIGIT_PINS];

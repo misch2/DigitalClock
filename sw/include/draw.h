@@ -1,8 +1,8 @@
 #include <Arduino.h>
 
 #include "display_layout.h"
+#include "externs.h"
 
-// make the global variables from main.cpp visible
 extern uint8_t visible_screen[CLOCK_ROWS][CLOCK_COLUMNS];
 
 #define FONT_DIGITS_OFFSET 0

@@ -7,6 +7,10 @@
 
 #include <SolarCalculator.h>
 
+long map_and_clamp(long x, long in_min, long in_max, long out_min, long out_max) {
+  return constrain(map(x, in_min, in_max, out_min, out_max), out_min, out_max);
+}
+
 int last_intensity = -1;
 void setAutoIntensity(tm rtcTime) {
   time_t utcTime = mktime(&rtcTime);
@@ -27,10 +31,8 @@ void setAutoIntensity(tm rtcTime) {
   // };
 
   // Negative degrees value is used to set the minimal brightness only when the sun is below the horizon:
-  int intensity = map(constrain(elevation, ELEVATION_FOR_MIN_INTENSITY, ELEVATION_FOR_MAX_INTENSITY),  // value needs to be capped!
-                      ELEVATION_FOR_MIN_INTENSITY, ELEVATION_FOR_MAX_INTENSITY,                        // map from
-                      ELEVATION_BASED_INTENSITY_MIN, ELEVATION_BASED_INTENSITY_MAX                     // map to
-  );
+  int intensity =
+      map_and_clamp(elevation, ELEVATION_FOR_MIN_INTENSITY, ELEVATION_FOR_MAX_INTENSITY, ELEVATION_BASED_INTENSITY_MIN, ELEVATION_BASED_INTENSITY_MAX);
   mx.control(MD_MAX72XX::INTENSITY, intensity);
   if (intensity != last_intensity) {
     DEBUG_PRINT("Sun elevation: %.1f deg -> intensity %d", elevation, intensity);

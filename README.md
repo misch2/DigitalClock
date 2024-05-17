@@ -7,7 +7,7 @@ This is a simple personal HW+SW project. My goal here was to upgrade an old JVD 
 Features:
  - Clock synchronized with NTP
  - Automatic daylight saving time adjustment
- - Automatic dimming based on time of the day
+ - Automatic dimming
 
 I decided to completely remove the old electronic board and replace it with a new one. While this meant losing some features such as the alarm clock, temperature monitoring, and gesture controls, it wasn't a problem for me because I hadn't used any of these for several years. The goal was just to get an on-and-forget style digital clock that wouldn't need to be constantly adjusted.
 
@@ -51,11 +51,14 @@ The prototype was tested on ESP32 and the production version runs on ESP8266 bec
 
 Output from `pio run -e esp8266`:
 ```
-Dependency Graph                                                                                                                                                
+Dependency Graph
 |-- WiFiManager @ 2.0.17+sha.e978bc0
 |-- Timemark @ 1.0.0+sha.49d4a19
+|-- BH1750 @ 1.3.0+sha.b6986b5
+|-- movingAvg @ 2.3.1+sha.23290e2
 |-- Syslog @ 2.0.0
 |-- MD_MAX72XX @ 3.5.1
+|-- Wire @ 1.0
 |-- ArduinoOTA @ 1.0
 |-- ESP8266WiFi @ 1.0
 ```

@@ -12,6 +12,7 @@
 #include "display.h"
 #include "display_layout.h"
 #include "draw.h"
+#include "intensity.h"
 #include "main.h"
 #include "tests.h"
 #include "utils.h"
@@ -199,6 +200,7 @@ void setup() {
     }
   });
 
+  initLightSensor();
   outOfSyncTimer.start();
   displayNotSyncedYet();
 

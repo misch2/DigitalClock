@@ -75,7 +75,7 @@ void setAutoIntensity(tm rtcTime) {
 
   mx.control(MD_MAX72XX::INTENSITY, final_intensity);
   if (final_intensity != last_intensity) {
-    DEBUG_PRINT("Light intensity: %.1f lux (log_corrected=%d) -> movavg intensity %d", lux, log_corrected_lux, final_intensity);
+    // DEBUG_PRINT("Light intensity: %.1f lux (log_corrected=%d) -> movavg intensity %d", lux, log_corrected_lux, final_intensity);
     last_intensity = final_intensity;
   }
 }

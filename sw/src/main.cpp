@@ -9,6 +9,7 @@
 #include <Timemark.h>
 #include <WiFiManager.h>
 
+#include "common/secrets.h"
 #include "display.h"
 #include "display_layout.h"
 #include "draw.h"
@@ -30,13 +31,9 @@
 // MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, SPI1, CS_PIN, NUM_DEVICES);
 // Arbitrary pins (bit banged SPI, no problem with low speed devices like MAX72xx)
 // MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, DATA_PIN, CLK_PIN, CS_PIN, NUM_DEVICES);
-#if defined(ESP32)
-  #define DATA_PIN 9
-  #define CS_PIN 10
-  #define CLK_PIN 11
+#if defined(INIT_MD_MAX72XX_WITH_FULL_PINS)
 MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, DATA_PIN, CLK_PIN, CS_PIN, NUM_DEVICES);
-#elif defined(ESP8266)
-  #define CS_PIN 15
+#else
 MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, CS_PIN, NUM_DEVICES);
 #endif
 
@@ -51,6 +48,14 @@ time_t lastTimeSeconds = 0;
 bool timeIsSyncedToNTP = false;
 Timemark halfSecondIndicator(500 * MILLIS);
 Timemark outOfSyncTimer(6 * HOURS_TO_MILLIS);
+
+int lastButtonState = LOW;
+enum clock_mode_t {
+  MODE_NORMAL,
+  MODE_TEST,
+};
+clock_mode_t mode = MODE_NORMAL;
+clock_mode_t lastMode = MODE_NORMAL;
 
 void cbSyncTimeESP32(struct timeval *tv) {  // callback function to show when NTP was synchronized
   DEBUG_PRINT("NTP time synchronized to %s", NTP_SERVER);
@@ -165,12 +170,6 @@ void setup() {
     while (1) delay(1000);
   };
 
-  // // // FIXME
-  // while (1) {
-  //   setupHelperForPinsAndSegments();
-  // }
-  // setupHelperForSegments();
-
   DEBUG_PRINT("Display selftest");
   mx.control(MD_MAX72XX::INTENSITY, MAX_INTENSITY);
   displaySelftest();
@@ -204,6 +203,14 @@ void setup() {
   outOfSyncTimer.start();
   displayNotSyncedYet();
 
+#if defined(TOUCH_BUTTON_PIN)
+  #if defined(ESP32)
+  pinMode(TOUCH_BUTTON_PIN, INPUT_PULLDOWN);
+  #elif defined(ESP8266)
+  pinMode(TOUCH_BUTTON_PIN, INPUT_PULLDOWN_16);
+  #endif
+#endif
+
   DEBUG_PRINT("SW version: %s", VERSION);
   DEBUG_PRINT("Timezone: %s", TIMEZONE);
   DEBUG_PRINT("NTP server: %s", NTP_SERVER);
@@ -219,6 +226,32 @@ void setup() {
 
 void loop() {
   ArduinoOTA.handle();
+
+#if defined(TOUCH_BUTTON_PIN)
+  if (digitalRead(TOUCH_BUTTON_PIN) == HIGH) {
+    if (lastButtonState == LOW) {
+      // first touch
+      mode = (mode == MODE_NORMAL) ? MODE_TEST : MODE_NORMAL;
+    }
+    lastButtonState = HIGH;
+  } else {
+    lastButtonState = LOW;
+  }
+#endif
+
+  if (mode != lastMode) {
+    if (mode == MODE_NORMAL) {
+      DEBUG_PRINT("Switching to normal mode");
+      test_off();
+    } else if (mode == MODE_TEST) {
+      DEBUG_PRINT("Switching to test mode");
+      test_all_on();
+    }
+    lastMode = mode;
+  }
+  if (mode == MODE_TEST) {
+    return;
+  }
 
   if (outOfSyncTimer.expired()) {
     timeIsSyncedToNTP = false;

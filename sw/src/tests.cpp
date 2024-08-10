@@ -33,3 +33,16 @@ void test_blinking()
 
   Serial.println("Stopped blinking");
 };
+
+void test_all_on() {
+  Serial.println("\nAll on");
+
+  // mx.control(MD_MAX72XX::INTENSITY, MAX_INTENSITY);
+  mx.control(MD_MAX72XX::INTENSITY, MAX_INTENSITY / 2);  // To avoid burning the LEDs and to see PWM on a scope
+  mx.control(MD_MAX72XX::TEST, MD_MAX72XX::ON);
+};
+
+void test_off() {
+  Serial.println("\nTestmode off");
+  mx.control(MD_MAX72XX::TEST, MD_MAX72XX::OFF);
+};

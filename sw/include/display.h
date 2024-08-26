@@ -13,3 +13,4 @@ void displayTextWiFi();
 void displayTextOTA(int percent);
 void displayNotSyncedYet();
 void displayTime(tm rtcTime, bool showDots);
+void displayAllDigits(int offset);

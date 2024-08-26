@@ -50,12 +50,10 @@ Timemark halfSecondIndicator(500 * MILLIS);
 Timemark outOfSyncTimer(6 * HOURS_TO_MILLIS);
 
 int lastButtonState = LOW;
-enum clock_mode_t {
-  MODE_NORMAL,
-  MODE_TEST,
-};
+enum clock_mode_t { MODE_NORMAL, MODE_TEST, MODE_SCROLL_DIGITS };
 clock_mode_t mode = MODE_NORMAL;
 clock_mode_t lastMode = MODE_NORMAL;
+int modeScrollDigits_offset = 0;
 
 void cbSyncTimeESP32(struct timeval *tv) {  // callback function to show when NTP was synchronized
   DEBUG_PRINT("NTP time synchronized to %s", NTP_SERVER);
@@ -170,9 +168,11 @@ void setup() {
     while (1) delay(1000);
   };
 
-  DEBUG_PRINT("Display selftest");
   mx.control(MD_MAX72XX::INTENSITY, MAX_INTENSITY);
-  displaySelftest();
+  // DEBUG_PRINT("Display selftest");
+  // displaySelftest();
+  // Selftest can be invoked anytime by pressing button
+
   displayTextWiFi();
 
   wifiManager.setHostname(HOSTNAME);
@@ -231,7 +231,13 @@ void loop() {
   if (digitalRead(TOUCH_BUTTON_PIN) == HIGH) {
     if (lastButtonState == LOW) {
       // first touch
-      mode = (mode == MODE_NORMAL) ? MODE_TEST : MODE_NORMAL;
+      if (mode == MODE_NORMAL) {
+        mode = MODE_TEST;
+      } else if (mode == MODE_TEST) {
+        mode = MODE_SCROLL_DIGITS;
+      } else {
+        mode = MODE_NORMAL;
+      }
     }
     lastButtonState = HIGH;
   } else {
@@ -246,10 +252,19 @@ void loop() {
     } else if (mode == MODE_TEST) {
       DEBUG_PRINT("Switching to test mode");
       test_all_on();
+    } else if (mode == MODE_SCROLL_DIGITS) {
+      DEBUG_PRINT("Switching to scroll digits mode");
+      test_off();
+      modeScrollDigits_offset = 0;
     }
     lastMode = mode;
   }
   if (mode == MODE_TEST) {
+    return;
+  }
+  if (mode == MODE_SCROLL_DIGITS) {
+    displayAllDigits(modeScrollDigits_offset++);
+    delay(200);
     return;
   }
 

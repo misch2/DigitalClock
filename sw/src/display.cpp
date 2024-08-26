@@ -176,3 +176,14 @@ void displayTime(tm rtcTime, bool showDots) {
   drawColons(showDots);
   sendScreenToDevice();
 }
+
+void displayAllDigits(int offset) {
+  drawSymbol(FONT_DIGITS_OFFSET + (offset + 0) % 10, POSITION_DIGIT1);
+  drawSymbol(FONT_DIGITS_OFFSET + (offset + 1) % 10, POSITION_DIGIT2);
+  drawSymbol(FONT_DIGITS_OFFSET + (offset + 2) % 10, POSITION_DIGIT3);
+  drawSymbol(FONT_DIGITS_OFFSET + (offset + 3) % 10, POSITION_DIGIT4);
+  drawSymbol(FONT_DIGITS_OFFSET + (offset + 4) % 10, POSITION_DIGIT5);
+  drawSymbol(FONT_DIGITS_OFFSET + (offset + 5) % 10, POSITION_DIGIT6);
+  drawColons(false);
+  sendScreenToDevice();
+};

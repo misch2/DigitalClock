@@ -1,5 +1,5 @@
 // clang-format off
-#define LOCAL_DEBUG
+// #define LOCAL_DEBUG
 #include "common/prolog.h"
 // clang-format on
 

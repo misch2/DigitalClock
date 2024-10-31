@@ -27,6 +27,5 @@
     #endif
   #else
     #define DEBUG_PRINT(...)
-    #error FIXME
   #endif
 #endif
